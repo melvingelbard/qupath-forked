@@ -31,11 +31,11 @@ import javafx.scene.layout.GridPane;
 import javafx.stage.Stage;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.helpers.PaneToolsFX;
-import qupath.lib.gui.helpers.DisplayHelpers;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.ml.PixelClassificationOverlay;
 import qupath.lib.gui.ml.PixelClassifierImageSelectionPane;
 import qupath.lib.gui.ml.PixelClassifierImageSelectionPane.ClassificationResolution;
+import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.PathOverlay;
 import qupath.lib.images.ImageData;
@@ -79,13 +79,13 @@ private QuPathGUI qupath;
 		
 		var imageData = viewer.getImageData();
 		if (imageData == null) {
-			DisplayHelpers.showErrorMessage(title, "You need an image to run this command!");
+			Dialogs.showErrorMessage(title, "You need an image to run this command!");
 			return;
 		}		
 		
 		var project = qupath.getProject();
 		if (project == null) {
-			DisplayHelpers.showErrorMessage(title, "You need a project open to run this command!");
+			Dialogs.showErrorMessage(title, "You need a project open to run this command!");
 			return;
 		}
 		
@@ -113,9 +113,9 @@ private QuPathGUI qupath;
 		
 		var pane = new GridPane();
 		
-		flaskAddress = DisplayHelpers.showInputDialog("Flask Server", "URL", "");
+		flaskAddress = Dialogs.showInputDialog("Flask Server", "URL", "");
 		if (!isFlaskReachable(flaskAddress) && (flaskAddress != null)) {
-			DisplayHelpers.showErrorMessage(title, "Could not reach Flask server!");
+			Dialogs.showErrorMessage(title, "Could not reach Flask server!");
 			return;
 		} else if (flaskAddress == null) return;
 		
@@ -128,16 +128,16 @@ private QuPathGUI qupath;
 		
 		Label resolutionLabel = new Label("Resolution");
 		resolutionLabel.setLabelFor(comboResolutions);
-		PaneToolsFX.addGridRow(pane, row++, 0, "Select image resolution to threshold", resolutionLabel, comboResolutions, comboResolutions);
+		PaneTools.addGridRow(pane, row++, 0, "Select image resolution to threshold", resolutionLabel, comboResolutions, comboResolutions);
 
 
 		Label modelLabel = new Label("Models");
 		modelLabel.setLabelFor(listOfAvailableModels);
-		PaneToolsFX.addGridRow(pane, row++, 0, "Select classification for pixels above the thresholds", modelLabel, listOfAvailableModels);
+		PaneTools.addGridRow(pane, row++, 0, "Select classification for pixels above the thresholds", modelLabel, listOfAvailableModels);
 
 		Label channelLabel = new Label("Channel");
 		channelLabel.setLabelFor(transforms);
-		PaneToolsFX.addGridRow(pane, row++, 0, "Select channel to threshold", channelLabel, transforms, transforms);
+		PaneTools.addGridRow(pane, row++, 0, "Select channel to threshold", channelLabel, transforms, transforms);
 		
 		
 		selectedResolution.addListener((v, o, n) -> {
@@ -168,8 +168,8 @@ private QuPathGUI qupath;
 		pane.setHgap(5.0);
 		pane.setPadding(new Insets(10.0));
 		
-		PaneToolsFX.setMaxWidth(Double.MAX_VALUE, comboResolutions, listOfAvailableModels);
-		PaneToolsFX.setFillWidth(Boolean.TRUE, comboResolutions, listOfAvailableModels);
+		PaneTools.setMaxWidth(Double.MAX_VALUE, comboResolutions, listOfAvailableModels);
+		PaneTools.setFillWidth(Boolean.TRUE, comboResolutions, listOfAvailableModels);
 		
 		updateGUI();
 		

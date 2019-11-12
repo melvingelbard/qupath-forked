@@ -29,6 +29,7 @@ import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelCalibration;
+import qupath.lib.images.writers.ImageWriterTools;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.classes.PathClassTools;
@@ -101,6 +102,8 @@ public class PyTorchPixelClassifier implements PixelClassifier {
 			}
 		}
 
+		var imageWriter = ImageWriterTools.getCompatibleWriters(server, ".tif");
+		
 		ByteArrayOutputStream stream = new ByteArrayOutputStream();
 	    ImageIO.write(img, "TIFF", stream);
 	    
@@ -190,7 +193,7 @@ public class PyTorchPixelClassifier implements PixelClassifier {
 		if (colorModel == null) {
 			var metadata = getMetadata();
 			if (metadata.getOutputType() == ImageServerMetadata.ChannelType.CLASSIFICATION) 
-				this.colorModel = (IndexColorModel)ColorModelFactory.getIndexedColorModel(metadata.getOutputChannels());
+				this.colorModel = (IndexColorModel)ColorModelFactory.getIndexedClassificationColorModel(metadata.getClassificationLabels());
 			else if (metadata.getOutputType() == ImageServerMetadata.ChannelType.PROBABILITY)
 				this.colorModel = ColorModelFactory.getProbabilityColorModel8Bit(metadata.getOutputChannels());
 		}
