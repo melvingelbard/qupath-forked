@@ -13,6 +13,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.lang.reflect.Array;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -231,89 +232,5 @@ public class PyTorchPixelClassifier implements PixelClassifier {
 		}
 		return metadata;
 	}	
-	
-	
-	static boolean writeImageAsNumpy(BufferedImage img, String path)  throws IOException {
-		int width = img.getWidth();
-		int height = img.getHeight();
-		int numBands = img.getSampleModel().getNumBands();
-		int imgType = img.getType();
-		int pixelDepth = img.getColorModel().getPixelSize();
-		
-		List<Byte> numpyArrayByte = new ArrayList<Byte>();
-
-		int magicNumber = (0x93);
-		String numpyString = "NUMPY";
-        int majorVersionNum = (0x01);
-        int minorVersionNum = (0x00);
-        
-        // (0x93)
-        numpyArrayByte.add((byte)magicNumber);
-        
-        // NUMPY
-        for (int i = 0; i < numpyString.toCharArray().length; i++) numpyArrayByte.add((byte)numpyString.toCharArray()[i]);
-        
-        // 10
-        numpyArrayByte.add((byte)majorVersionNum);
-        numpyArrayByte.add((byte)minorVersionNum);
-
-        // HEADER_LENGTH
-        numpyArrayByte.add((byte)(0x76));
-        numpyArrayByte.add((byte)(0x00));
-        
-        // {'descr: '
-        String descr = "{'descr': '";
-        for (int i = 0; i < descr.toCharArray().length; i++) numpyArrayByte.add((byte)descr.toCharArray()[i]);
-        
-        // DataType
-        String format = "";
-        switch (imgType | pixelDepth/numBands) {
-            case 0 | 32:	// float32
-                format = "<f4";
-                break;
-            case 0 | 8:
-            	format = "|u1";
-            	break;
-                
-            case 1 | 8:		// uint8
-                format = "|u1";
-                break;
-                
-            default:
-            	throw new IOException();
-        }
-        
-        for (int i = 0; i < format.toCharArray().length; i++) numpyArrayByte.add((byte)format.toCharArray()[i]);
-        
-        
-        String shape = "', 'fortran_order': False, 'shape': (" + width + ", " + height + ", " + numBands + "), }";
-        for (int i = 0; i < shape.toCharArray().length; i++) numpyArrayByte.add((byte)shape.toCharArray()[i]);
-
-        
-        // BLANK_SPACE
-        while (numpyArrayByte.size() % 64 != 0) numpyArrayByte.add((byte)(0x20));
-        numpyArrayByte.set(numpyArrayByte.size()-1, (byte)(0x0A));
-        
-        // Data
-        for (int k = 0; k < width*height; k++) {
-        	for (int j = 0; j < numBands; j++){
-        		if (format == "<f4") {
-        			byte[] bytes = new byte[4];
-                    ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).putFloat(img.getRaster().getSample(k/width, k % height, j));
-                    for (byte floatByte: bytes) numpyArrayByte.add(floatByte);
-        		} else if (format == "|u1") numpyArrayByte.add((byte)img.getRaster().getSample(k%height, k/width, j));
-
-        	}
-        }
-        
-        // Write to file
-        byte[] out = new byte[numpyArrayByte.size()];
-        for (int i = 0; i < numpyArrayByte.size(); i++) out[i] = numpyArrayByte.get(i);
-        FileOutputStream fos = new FileOutputStream(path);
-        fos.write(out);
-        fos.close();
-
-		return true;
-	}
 
 }
