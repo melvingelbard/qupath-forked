@@ -135,11 +135,7 @@ public class GeometryTools {
      * @param geometries
      * @return
      */
-<<<<<<< HEAD
-    public static Geometry union(Collection<Geometry> geometries) {
-=======
     public static Geometry union(Collection<? extends Geometry> geometries) {
->>>>>>> 97383e4f8f64284b9b755bdb2523ab55796bae4a
     	if (geometries.isEmpty())
     		return DEFAULT_INSTANCE.factory.createPolygon();
     	if (geometries.size() == 1)
@@ -418,25 +414,6 @@ public class GeometryTools {
 					totalCount++;
 					if (areaTempSigned < 0) {
 						areaNegative += areaTempSigned;
-<<<<<<< HEAD
-//						negative.add(polygon);
-						for (int i = 0; i < polygon.getNumGeometries(); i++) {
-							Polygon p = (Polygon)polygon.getGeometryN(i);
-							negative.add(p);
-//							negative.add(factory.createPolygon(p.getExteriorRing().getCoordinateSequence()));
-//							for (int j = 0; j < p.getNumInteriorRing(); j++)
-//								positive.add(factory.createPolygon(p.getInteriorRingN(j).getCoordinateSequence()));
-						}
-					} else if (areaTempSigned > 0) {
-						areaPositive += areaTempSigned;
-//						positive.add(polygon);
-						for (int i = 0; i < polygon.getNumGeometries(); i++) {
-							Polygon p = (Polygon)polygon.getGeometryN(i);
-							positive.add(p);
-//							positive.add(factory.createPolygon(p.getExteriorRing().getCoordinateSequence()));
-//							for (int j = 0; j < p.getNumInteriorRing(); j++)
-//								negative.add(factory.createPolygon(p.getInteriorRingN(j).getCoordinateSequence()));
-=======
 						for (int i = 0; i < polygon.getNumGeometries(); i++) {
 							Polygon p = (Polygon)polygon.getGeometryN(i);
 							negative.add(p);
@@ -446,7 +423,6 @@ public class GeometryTools {
 						for (int i = 0; i < polygon.getNumGeometries(); i++) {
 							Polygon p = (Polygon)polygon.getGeometryN(i);
 							positive.add(p);
->>>>>>> 97383e4f8f64284b9b755bdb2523ab55796bae4a
 						}
 					}
 					// Zero indicates the shape is empty...
@@ -491,55 +467,24 @@ public class GeometryTools {
 				// We need to handle holes... and, in particular, additional objects that may be nested within holes.
 				// To do that, we iterate through the holes and try to match these with the containing polygon, updating it accordingly.
 				// By doing this in order (largest first) we should find the 'correct' containing polygon.
-<<<<<<< HEAD
-=======
 				
 				// Cache areas so we can use them for sorting without recalculating them every time
->>>>>>> 97383e4f8f64284b9b755bdb2523ab55796bae4a
 				var areaMap = new HashMap<Geometry, Double>();
 				for (var g : outer)
 					areaMap.put(g, g.getArea());
 				for (var g : holes)
 					areaMap.put(g, g.getArea());
-<<<<<<< HEAD
-				var comparator = Comparator.comparingDouble(g -> areaMap.get(g)).reversed();
-				outer.sort(comparator);
-				holes.sort(comparator);
-=======
 				
 				// For each hole, find the smallest polygon that contains it
 				var ascendingArea = Comparator.comparingDouble(g -> areaMap.get(g));
 				outer.sort(ascendingArea);
 				holes.sort(ascendingArea);
 				Map<Geometry, List<Geometry>> matches = new HashMap<>();
->>>>>>> 97383e4f8f64284b9b755bdb2523ab55796bae4a
 				for (var tempHole : holes) {
 					double holeArea = areaMap.get(tempHole);
 					// We assume a single point inside is sufficient because polygons should be non-overlapping
 					var point = tempHole.getCoordinate();
 					var iterOuter = outer.iterator();
-<<<<<<< HEAD
-					while (iterOuter.hasNext()) {
-						var tempOuter = iterOuter.next();
-						if (holeArea > areaMap.get(tempOuter)) {
-							logger.warn("No polygons found containing hole!");
-							break;
-						}
-						if (SimplePointInAreaLocator.isContained(point, tempOuter)) {
-							iterOuter.remove();
-							var temp = tempOuter.difference(tempHole);
-							areaMap.put(temp, temp.getArea());
-							outer.add(temp);
-							outer.sort(comparator);
-							break;
-						}
-						if (!iterOuter.hasNext())
-							logger.warn("No polygons found containing hole!");
-					}
-				}
-				geometry = union(outer);
-				geometryOuter = geometry;
-=======
 					int count = 0;
 					while (iterOuter.hasNext()) {
 						var tempOuter = iterOuter.next();
@@ -601,7 +546,6 @@ public class GeometryTools {
 //				}
 //				geometry = union(outer);
 //				geometryOuter = geometry;
->>>>>>> 97383e4f8f64284b9b755bdb2523ab55796bae4a
 			}
 			
 			// Perform a sanity check using areas
