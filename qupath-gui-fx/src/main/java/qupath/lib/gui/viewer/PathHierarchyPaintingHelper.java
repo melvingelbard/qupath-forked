@@ -390,7 +390,11 @@ public class PathHierarchyPaintingHelper {
 								paintROI(cell.getNucleusROI(), g, colorStroke, stroke, colorFill, downsample);
 							painted = true;
 						} else {
-							if ((overlayOptions.getFillAnnotations() && pathObject.isAnnotation() && pathObject.getPathClass() != PathClassFactory.getPathClass(StandardPathClasses.REGION)) || (pathObject.isTMACore() && overlayOptions.getShowTMACoreLabels()))
+							if ((overlayOptions.getFillAnnotations() &&
+									pathObject.isAnnotation() && 
+									pathObject.getPathClass() != PathClassFactory.getPathClass(StandardPathClasses.REGION) &&
+									(pathObject.getPathClass() != null || !pathObject.hasChildren()))
+									|| (pathObject.isTMACore() && overlayOptions.getShowTMACoreLabels()))
 								paintROI(pathROI, g, colorStroke, stroke, ColorToolsAwt.getMoreTranslucentColor(colorStroke), downsample);
 							else
 								paintROI(pathROI, g, colorStroke, stroke, colorFill, downsample);
@@ -571,9 +575,12 @@ public class PathHierarchyPaintingHelper {
 				shape = RoiTools.getShape(roi);
 				// Downsample if we have to
 				if (map != this.map) {
-//					shape = GeometryTools.geometryToShape(
-//							VWSimplifier.simplify(roi.getGeometry(), downsample)
-//							);
+					// JTS methods are much slower
+//					var simplifier = new DouglasPeuckerSimplifier(roi.getGeometry());
+//					var simplifier = new VWSimplifier(roi.getGeometry());
+//					simplifier.setDistanceTolerance(downsample);
+//					simplifier.setEnsureValid(false);
+//					shape = GeometryTools.geometryToShape(simplifier.getResultGeometry());
 					shape = simplifyByDownsample(shape, downsample);
 				}
 				map.put(roi, shape);
