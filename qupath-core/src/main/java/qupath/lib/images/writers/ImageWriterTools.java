@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.ServiceLoader;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.lang.Math; 
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -184,6 +185,7 @@ public class ImageWriterTools {
 	
 	/**
 	 * Encode a BufferedImage in Numpy array representation to a byte array.
+	 * Compatible formats: [uint8, int8, int16, int32, int64, float16, float32, float64].
 	 * @param img
 	 * @return byteArray
 	 * @throws IOException
@@ -221,26 +223,20 @@ public class ImageWriterTools {
         for (int i = 0; i < descr.toCharArray().length; i++) numpyArrayByte.add((byte)descr.toCharArray()[i]);
         
         // DataType
-        String format = "";
-        switch (imgType | pixelDepth/numBands) {
-            case 0 | 32:	// float32
-                format = "<f4";
-                break;
-            case 0 | 8:
-            	format = "|u1";
-            	break;
-                
-            case 1 | 8:		// uint8
-                format = "|u1";
-                break;
-                
-            default:
-            	throw new IOException();
-        }
+        boolean isInteger = false;
+        if (Integer.class.isInstance(img.getRaster().getSample(0, 0, 0))) isInteger = true;
+        String[] intFormats = new String[] {"|i1", "|i2", "|i4", "|i8"};
+        String[] floatFormats = new String[] {"<f2", "<f4", "<f8"};
         
+        String format = "";
+        if (isInteger) format = intFormats[pixelDepth/numBands/8 - 1];
+        else format = floatFormats[pixelDepth/numBands/8 - 2];
+        if (imgType == 1) format = "|u1";	// If RGB Image, format = uint8
+        
+        // Convert format String to bytes
         for (int i = 0; i < format.toCharArray().length; i++) numpyArrayByte.add((byte)format.toCharArray()[i]);
         
-        
+        // Metadata
         String shape = "', 'fortran_order': False, 'shape': (" + width + ", " + height + ", " + numBands + "), }";
         for (int i = 0; i < shape.toCharArray().length; i++) numpyArrayByte.add((byte)shape.toCharArray()[i]);
 
@@ -252,12 +248,20 @@ public class ImageWriterTools {
         // Data
         for (int k = 0; k < width*height; k++) {
         	for (int j = 0; j < numBands; j++){
-        		if (format == "<f4") {
-        			byte[] bytes = new byte[4];
-                    ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).putFloat(img.getRaster().getSample(k/width, k % height, j));
-                    for (byte floatByte: bytes) numpyArrayByte.add(floatByte);
-        		} else if (format == "|u1") numpyArrayByte.add((byte)img.getRaster().getSample(k%height, k/width, j));
-
+        		byte[] bytes;
+        		if (isInteger) {
+        			bytes = new byte[4];
+                    ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).putInt(img.getRaster().getSample(k/width, k % height, j));
+        		} else {
+        			if (pixelDepth < 64) {
+        				bytes = new byte[4];
+                        ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).putFloat(img.getRaster().getSample(k/width, k % height, j));
+        			} else {
+        				bytes = new byte[8];
+                        ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).putDouble(img.getRaster().getSample(k/width, k % height, j));
+        			}
+        			for (byte floatByte: bytes) numpyArrayByte.add(floatByte);
+        		}
         	}
         }
         
