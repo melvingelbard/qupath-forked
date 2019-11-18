@@ -11,14 +11,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import java.lang.Math; 
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -190,18 +187,14 @@ public class ImageWriterTools {
 	
 	/**
 	 * Encode a BufferedImage in Numpy array representation to a byte array.
-	 * Compatible formats: [(uint8,) int8, int16, int32, int64, float16, float32, float64].
+	 * Compatible formats: [uint8, uint16, uint32, int8, int16, int32, float32, float64].
 	 * @param img
 	 * @return byteArray
-	 * @throws IOException
 	 */
-	public static byte[] imageToNumpyByteArray(BufferedImage img, PixelType pixelType) throws IOException {
+	public static byte[] imageToNumpyByteArray(BufferedImage img, PixelType pixelType) {
 		int width = img.getWidth();
 		int height = img.getHeight();
 		int numBands = img.getSampleModel().getNumBands();
-		int imgType = img.getType();
-		int pixelDepth = img.getColorModel().getPixelSize();
-		boolean isInteger = (img.getRaster().getTransferType() != 4) && (img.getRaster().getTransferType() != 5);
 		
 		List<Byte> numpyArrayByte = new ArrayList<Byte>();
 
@@ -236,8 +229,8 @@ public class ImageWriterTools {
         	    PixelType.UINT8, "<u1",
         	    PixelType.UINT16, "<u2",
         	    PixelType.UINT32, "<u4",
-        	    PixelType.FLOAT32, "<f2",
-        	    PixelType.FLOAT64, "<f4"
+        	    PixelType.FLOAT32, "<f4",
+        	    PixelType.FLOAT64, "<f8"
         	);
         
         String format = formats.get(pixelType);
@@ -248,7 +241,6 @@ public class ImageWriterTools {
         // Metadata
         String shape = "', 'fortran_order': False, 'shape': (" + width + ", " + height + ", " + numBands + "), }";
         for (int i = 0; i < shape.toCharArray().length; i++) numpyArrayByte.add((byte)shape.toCharArray()[i]);
-
         
         // BLANK_SPACE
         while (numpyArrayByte.size() % 64 != 0) numpyArrayByte.add((byte)(0x20));
@@ -258,18 +250,18 @@ public class ImageWriterTools {
         for (int k = 0; k < width*height; k++) {
         	for (int j = 0; j < numBands; j++){
         		byte[] bytes;
-        		if (isInteger) {
+        		if (format.startsWith("|i") || format.startsWith("<u")) {
         			bytes = new byte[4];
-        			ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).putInt(img.getRaster().getSample(k/width, k % height, j));
-        			if (pixelType == PixelType.INT8) bytes = Arrays.copyOfRange(bytes, 0, 1);
-        			else if (pixelType == PixelType.INT32) bytes = Arrays.copyOfRange(bytes, 0, 2);
+        			ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).putInt(img.getRaster().getSample(k%width, k/height, j));
+        			if (pixelType == PixelType.INT8 || pixelType == PixelType.UINT8) bytes = Arrays.copyOfRange(bytes, 0, 1);
+        			else if (pixelType == PixelType.INT32 || pixelType == PixelType.UINT32) bytes = Arrays.copyOfRange(bytes, 0, 2);
         		} else {
-        			if (pixelDepth/numBands < 64) {
-        				bytes = new byte[4];
-                        ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).putFloat(img.getRaster().getSampleFloat(k/width, k % height, j));
-        			} else {
+        			if (format == "<f8") {
         				bytes = new byte[8];
-                        ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).putDouble(img.getRaster().getSampleDouble(k/width, k % height, j));
+                        ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).putDouble(img.getRaster().getSampleDouble(k%width, k/height, j));
+        			} else {
+        				bytes = new byte[4];
+                        ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).putFloat(img.getRaster().getSampleFloat(k%width, k/height, j));
         			}
         		}
         		for (byte floatByte: bytes) numpyArrayByte.add(floatByte);
@@ -278,7 +270,7 @@ public class ImageWriterTools {
         }
 
         
-        // Write to file
+        // Convert to byte array
         byte[] out = new byte[numpyArrayByte.size()];
         for (int i = 0; i < numpyArrayByte.size(); i++) out[i] = numpyArrayByte.get(i);
 
