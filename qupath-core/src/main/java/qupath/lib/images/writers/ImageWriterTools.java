@@ -8,9 +8,13 @@ import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -21,6 +25,7 @@ import org.slf4j.LoggerFactory;
 
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.WrappedBufferedImageServer;
 import qupath.lib.regions.RegionRequest;
 
@@ -163,8 +168,8 @@ public class ImageWriterTools {
 	 * @param path
 	 * @throws IOException
 	 */
-	public static void writeImageAsNumpy(BufferedImage img, String path) throws IOException {
-		byte[] bytes = imageToNumpyByteArray(img);
+	public static void writeImageAsNumpy(BufferedImage img, PixelType pixelType, String path) throws IOException {
+		byte[] bytes = imageToNumpyByteArray(img, pixelType);
 		FileOutputStream fos = new FileOutputStream(path);
         fos.write(bytes);
         fos.close();
@@ -177,25 +182,26 @@ public class ImageWriterTools {
 	 * @param stream
 	 * @throws IOException
 	 */
-	public static void writeImageAsNumpy(BufferedImage img, OutputStream stream) throws IOException {
-		byte[] bytes = imageToNumpyByteArray(img);
+	public static void writeImageAsNumpy(BufferedImage img, PixelType pixelType, OutputStream stream) throws IOException {
+		byte[] bytes = imageToNumpyByteArray(img, pixelType);
 		stream.write(bytes);
 	}
 	
 	
 	/**
 	 * Encode a BufferedImage in Numpy array representation to a byte array.
-	 * Compatible formats: [uint8, int8, int16, int32, int64, float16, float32, float64].
+	 * Compatible formats: [(uint8,) int8, int16, int32, int64, float16, float32, float64].
 	 * @param img
 	 * @return byteArray
 	 * @throws IOException
 	 */
-	public static byte[] imageToNumpyByteArray(BufferedImage img)  throws IOException {
+	public static byte[] imageToNumpyByteArray(BufferedImage img, PixelType pixelType) throws IOException {
 		int width = img.getWidth();
 		int height = img.getHeight();
 		int numBands = img.getSampleModel().getNumBands();
 		int imgType = img.getType();
 		int pixelDepth = img.getColorModel().getPixelSize();
+		boolean isInteger = (img.getRaster().getTransferType() != 4) && (img.getRaster().getTransferType() != 5);
 		
 		List<Byte> numpyArrayByte = new ArrayList<Byte>();
 
@@ -222,16 +228,19 @@ public class ImageWriterTools {
         String descr = "{'descr': '";
         for (int i = 0; i < descr.toCharArray().length; i++) numpyArrayByte.add((byte)descr.toCharArray()[i]);
         
-        // DataType
-        boolean isInteger = false;
-        if (Integer.class.isInstance(img.getRaster().getSample(0, 0, 0))) isInteger = true;
-        String[] intFormats = new String[] {"|i1", "|i2", "|i4", "|i8"};
-        String[] floatFormats = new String[] {"<f2", "<f4", "<f8"};
+        // DataType        
+        Map<PixelType, String> formats = Map.of(
+        	    PixelType.INT8, "|i1",
+        	    PixelType.INT16, "|i2",
+        	    PixelType.INT32, "|i4",
+        	    PixelType.UINT8, "<u1",
+        	    PixelType.UINT16, "<u2",
+        	    PixelType.UINT32, "<u4",
+        	    PixelType.FLOAT32, "<f2",
+        	    PixelType.FLOAT64, "<f4"
+        	);
         
-        String format = "";
-        if (isInteger) format = intFormats[pixelDepth/numBands/8 - 1];
-        else format = floatFormats[pixelDepth/numBands/8 - 2];
-        if (imgType == 1) format = "|u1";	// If RGB Image, format = uint8
+        String format = formats.get(pixelType);
         
         // Convert format String to bytes
         for (int i = 0; i < format.toCharArray().length; i++) numpyArrayByte.add((byte)format.toCharArray()[i]);
@@ -251,19 +260,23 @@ public class ImageWriterTools {
         		byte[] bytes;
         		if (isInteger) {
         			bytes = new byte[4];
-                    ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).putInt(img.getRaster().getSample(k/width, k % height, j));
+        			ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).putInt(img.getRaster().getSample(k/width, k % height, j));
+        			if (pixelType == PixelType.INT8) bytes = Arrays.copyOfRange(bytes, 0, 1);
+        			else if (pixelType == PixelType.INT32) bytes = Arrays.copyOfRange(bytes, 0, 2);
         		} else {
-        			if (pixelDepth < 64) {
+        			if (pixelDepth/numBands < 64) {
         				bytes = new byte[4];
-                        ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).putFloat(img.getRaster().getSample(k/width, k % height, j));
+                        ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).putFloat(img.getRaster().getSampleFloat(k/width, k % height, j));
         			} else {
         				bytes = new byte[8];
-                        ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).putDouble(img.getRaster().getSample(k/width, k % height, j));
+                        ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).putDouble(img.getRaster().getSampleDouble(k/width, k % height, j));
         			}
-        			for (byte floatByte: bytes) numpyArrayByte.add(floatByte);
         		}
+        		for (byte floatByte: bytes) numpyArrayByte.add(floatByte);
+        		
         	}
         }
+
         
         // Write to file
         byte[] out = new byte[numpyArrayByte.size()];
