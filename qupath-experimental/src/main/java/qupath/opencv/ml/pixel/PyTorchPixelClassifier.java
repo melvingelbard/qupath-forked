@@ -81,6 +81,8 @@ public class PyTorchPixelClassifier implements PixelClassifier {
 		var img = server.readBufferedImage(request);
 		BufferedImage imgResult = null;
 		
+		//ImageWriterTools.writeImageAsNumpy(img, "M:/deep_learning/toNumpy.npy");
+		
 		if (featureCalculator != null) {
 			float[] transformed;
 			List<PixelFeature> features;
