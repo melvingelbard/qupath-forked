@@ -2611,7 +2611,10 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	 * not be called too often.
 	 */
 	public void forceOverlayUpdate() {
-		hierarchyOverlay.clearCachedOverlay();
+		if (Platform.isFxApplicationThread())
+			hierarchyOverlay.clearCachedOverlay();
+		else
+			Platform.runLater(() -> hierarchyOverlay.clearCachedOverlay());
 		repaint();
 	}
 
@@ -2633,6 +2636,12 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	private void handleHierarchyChange(final PathObjectHierarchyEvent event) {
 		if (event != null)
 			logger.trace(event.toString());
+		
+		if (!Platform.isFxApplicationThread()) {
+			Platform.runLater(() -> handleHierarchyChange(event));
+			return;
+		}
+		
 		// Clear any cached regions of the overlay, if necessary
 		// TODO: Make this update a bit less conservative - it isn't really needed if we don't modify detections?
 		if (event == null || event.isStructureChangeEvent())
@@ -2651,6 +2660,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 				hierarchyOverlay.clearCachedOverlay();
 			}
 		}
+//		hierarchyOverlay.clearCachedOverlay();
 
 		// Just in case, make sure the handles are updated in any ROIEditor
 		if (event != null && !event.isChanging())
@@ -2658,8 +2668,6 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		// Request repaint
 		repaint();
 	}
-
-
 
 
 
@@ -2687,6 +2695,10 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			listener.selectedObjectChanged(this, pathObjectSelected);
 		}
 
+		if (Platform.isFxApplicationThread())
+			hierarchyOverlay.resetBuffer();
+		else
+			Platform.runLater(() -> hierarchyOverlay.resetBuffer());
 		logger.trace("Selected path object changed from {} to {}", previousObject, pathObjectSelected);
 
 		repaint();
