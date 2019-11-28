@@ -94,6 +94,16 @@ private QuPathGUI qupath;
 			showGUI();
 		else
 			stage.toFront();
+		
+		
+		stage.setOnHiding(e -> {
+			for (var entry : map.entrySet()) {
+				if (entry.getKey().getCustomPixelLayerOverlay() == entry.getValue())
+					entry.getKey().resetCustomPixelLayerOverlay();
+					selectedOverlay.set(null);
+					PixelClassificationImageServer.setPixelLayer(entry.getKey().getImageData(), null);
+			}
+		});
 
 	}
 

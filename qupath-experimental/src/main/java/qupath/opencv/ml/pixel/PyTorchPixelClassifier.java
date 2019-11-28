@@ -151,51 +151,6 @@ public class PyTorchPixelClassifier implements PixelClassifier {
 
 	        //imgResult = new BufferedImage(getColorModel(), prediction.getRaster(), false, null);
 
-
-	        /*
-	    	List<BufferedImage> channels = new ArrayList<>();
-	    	InputStream inputStream = new BufferedInputStream(conn.getInputStream());
-
-	    	ImageInputStream imageInputStream = ImageIO.createImageInputStream(inputStream);
-	    	Iterator<ImageReader> readers = ImageIO.getImageReaders(imageInputStream);
-	    	ImageReader reader = readers.next();
-	    	reader.setInput(imageInputStream);
-
-	    	try {
-	            int i = 0;
-	            while (true) {
-	            	channels.add(reader.read(i++));
-	            }
-	        }
-	        catch (IndexOutOfBoundsException ex) {
-	        	// No more channels to be read
-	        }
-
-	    	reader.dispose();
-
-	    	int width = channels.get(0).getWidth();
-	    	int height = channels.get(0).getHeight();
-	    	int numOfChannels = channels.size();
-	    	int lengthArray = width * height;
-	    	byte[][] finalByteArray = new byte[numOfChannels][lengthArray];
-
-	    	for (int i = 0; i < numOfChannels; i++) {
-	    		// Get the data from bufferedImage
-	    		DataBufferByte dataBufferByte = (DataBufferByte)channels.get(i).getRaster().getDataBuffer();
-
-	    		// Each bufferedImage has one channel only
-		    	byte[] bankData = dataBufferByte.getBankData()[0];
-
-		    	// Add data to finalDoubleArray
-		    	finalByteArray[i] = bankData;
-	    	}
-
-	    	DataBufferByte dataBuffer = new DataBufferByte(finalByteArray, lengthArray);
-	        BandedSampleModel sampleModel = new BandedSampleModel(0, width, height, numOfChannels);
-	        WritableRaster raster = WritableRaster.createWritableRaster(sampleModel, dataBuffer, null);
-	        imgResult = new BufferedImage(getColorModel(), raster, false, null);
-
-	        */
 	    }
 
 
