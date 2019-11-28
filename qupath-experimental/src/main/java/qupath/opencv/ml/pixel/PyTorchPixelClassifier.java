@@ -1,31 +1,19 @@
 package qupath.opencv.ml.pixel;
 
-import java.awt.image.BandedSampleModel;
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
 import java.awt.image.DataBufferByte;
 import java.awt.image.IndexColorModel;
-import java.awt.image.WritableRaster;
 import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
-import java.lang.reflect.Array;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
-
 import javax.imageio.ImageIO;
-import javax.imageio.ImageReader;
-import javax.imageio.stream.ImageInputStream;
 
 import qupath.lib.analysis.images.SimpleImages;
 import qupath.lib.classifiers.pixel.PixelClassifier;
@@ -36,10 +24,8 @@ import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelCalibration;
-import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.writers.ImageWriterTools;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.regions.RegionRequest;
 import qupath.opencv.ml.pixel.features.FeatureCalculator;
@@ -158,6 +144,15 @@ public class PyTorchPixelClassifier implements PixelClassifier {
 	        
 	        
 	    } else if (metadata.getOutputType() == ImageServerMetadata.ChannelType.PROBABILITY) {
+	    	
+	    	InputStream inputStream = new BufferedInputStream(conn.getInputStream());
+	        imgResult = ImageIO.read(inputStream);
+	        inputStream.close();
+	        
+	        //imgResult = new BufferedImage(getColorModel(), prediction.getRaster(), false, null);
+	        
+	        
+	        /*
 	    	List<BufferedImage> channels = new ArrayList<>();
 	    	InputStream inputStream = new BufferedInputStream(conn.getInputStream());
 
@@ -200,7 +195,10 @@ public class PyTorchPixelClassifier implements PixelClassifier {
 	        WritableRaster raster = WritableRaster.createWritableRaster(sampleModel, dataBuffer, null);
 	        imgResult = new BufferedImage(getColorModel(), raster, false, null);
 	        
+	        */
 	    }
+	    
+	    
 	    
 		return imgResult;
 	}
