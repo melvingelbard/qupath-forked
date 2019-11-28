@@ -30,7 +30,7 @@ buildscript {
 /*
  * Using java-library rather than java enables us to define api dependencies,
  * i.e. dependencies exported from the API of QuPath.
- * An example if JTS, since QuPath ROIs can be converted to JTS Geometries and this 
+ * An example if JTS, since QuPath ROIs can be converted to JTS Geometries and this
  * should be accessible throughout the software.
  */
 plugins {
@@ -140,7 +140,7 @@ if (OperatingSystem.current().isMacOsX()) {
 /*
  * Note on OpenCV, OpenBLAS & Mac.
  * This appears to segfault sometimes, in which case the following command line parameters may help:
- *   -Dorg.bytedeco.openblas.load=blas -Djava.library.path=.:/usr/lib/ 
+ *   -Dorg.bytedeco.openblas.load=blas -Djava.library.path=.:/usr/lib/
  * See https://github.com/bytedeco/javacpp-presets/tree/master/openblas for further information.
  *
  * Another way to avoid requiring this is to set the number of threads to 1 within the QuPath code.
@@ -154,8 +154,8 @@ wrapper {
 }
 
 /*
- * jarjar makes it possible to remove the troublesome MacAdapter in ij.jar, 
- * which doesn't work for JDK 9+ and causes module issue because it is not contained 
+ * jarjar makes it possible to remove the troublesome MacAdapter in ij.jar,
+ * which doesn't work for JDK 9+ and causes module issue because it is not contained
  * within any package.
  *
  * Only required if building modules. Currently all instances commented out.
@@ -185,6 +185,8 @@ allprojects {
     richtextVersion    = '0.10.2'
     // Note, if OpenCV is a SNAPSHOT version then it must already be installed locally (with Maven)
     opencvVersion      = '4.1.2-1.5.2'
+    // Note, the use of ONNX is experimental
+    onnxVersion        = '1.6.0-1.5.2'
   }
 
   configurations {
@@ -196,6 +198,7 @@ allprojects {
     controlsfx
     jfxtras
     opencv
+    onnx
     jpen
     imagej
     openslide
@@ -203,7 +206,7 @@ allprojects {
     nativeloader
     guava
     picocli
-    
+
     // Guava tries to bring in extra dependencies not required at runtime
     implementation {
     	exclude group: 'com.google.code.findbugs'
@@ -249,6 +252,10 @@ allprojects {
 	    opencv "org.bytedeco:opencv:${opencvVersion}:${nativesCPP}"
     }
 
+    onnx "org.bytedeco:onnxruntime:${onnxVersion}"
+    if (nativesCPP != null)
+      onnx "org.bytedeco:onnxruntime:${onnxVersion}:${nativesCPP}"
+
     jpen "net.sourceforge.jpen:jpen:${jpenVersion}"
     if (nativesClassifier != null)
       jpen "net.sourceforge.jpen:jpen:${jpenVersion}:${nativesClassifier}"
@@ -292,7 +299,7 @@ configure( subprojects.findAll {it.name.contains('-extension') || it.name.contai
 
 
 /*
- * Not everybody is ready to be a module yet... 
+ * Not everybody is ready to be a module yet...
  */
 def moduleExclusionFilter = {String moduleName -> !doModular || moduleName.contains('bioformats') || moduleName.contains('jpen')}
 
@@ -416,8 +423,8 @@ repositories {
  * I suspect there may be a cleaner way to specify subprojects...
  */
 dependencies {
-  implementation "org.openjfx:javafx-graphics:${jfxVersion}"    
-  implementation "org.openjfx:javafx-graphics:${jfxVersion}:${platform}"    
+  implementation "org.openjfx:javafx-graphics:${jfxVersion}"
+  implementation "org.openjfx:javafx-graphics:${jfxVersion}:${platform}"
   subprojects {
     implementation it
   }
@@ -552,7 +559,7 @@ task mergedJavadocs(type: Javadoc) {
  * Create a custom runtime.  Mostly to avoid using the same one as jpackager for now.
  */
 task createRuntime(dependsOn:build, type:Exec) {
-	
+
   def outputDir = new File(rootProject.buildDir, 'jre')
 
   // Reuse existing JRE if available
@@ -561,7 +568,7 @@ task createRuntime(dependsOn:build, type:Exec) {
   doFirst {
 
    def params = ["${System.properties['java.home']}/bin/jlink"]
-	
+
     params << '--output' << outputDir.getAbsolutePath()
     params << '--add-modules' << 'java.desktop,java.xml,java.scripting,java.sql,java.naming,jdk.unsupported,jdk.zipfs'
 
@@ -571,10 +578,10 @@ task createRuntime(dependsOn:build, type:Exec) {
     params << '--strip-native-commands'
     params << '--compress=2'
 
-//	params << '--module-path' << System.properties.'java.home' + '/jmods' 
+//	params << '--module-path' << System.properties.'java.home' + '/jmods'
 
     print String.join(' ', params)
-    
+
     commandLine = params
   }
 
@@ -619,7 +626,7 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
     params << '--dest' << new File(rootProject.buildDir, 'dist').getAbsolutePath()
 
     params << '--main-jar' << jar.archiveName
-    
+
     params << '--name' << 'QuPath-' + qupathVersion
 //    params << '--class' << 'qupath.QuPath'
 
@@ -645,7 +652,7 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
 			int lastDash = appVersion.lastIndexOf('-')
 			if (lastDash > 0) {
 				appVersion = appVersion.substring(0, lastDash)
-				println "Simplifying QuPath version ${qupathVersion} to ${appVersion} for compatibility" 
+				println "Simplifying QuPath version ${qupathVersion} to ${appVersion} for compatibility"
 			}
 		} else
 			params << '--type' << 'app-image'
@@ -661,7 +668,7 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
 
     // Store the app version (typically a simplified version of the full format)
     params << '--app-version' << appVersion
-        
+
     // Try to find the icon
     def pathIcon = Paths.get(
             rootProject.buildDir.getAbsolutePath(),
@@ -672,10 +679,10 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
 	params << '--runtime-image' << new File(rootProject.buildDir, 'jre').getAbsolutePath()
 //    params << '--add-modules' << 'java.desktop,java.xml,java.scripting,java.sql,java.naming,jdk.unsupported'
 
-//	params << '--module-path' << System.properties.'java.home' + '/jmods' 
+//	params << '--module-path' << System.properties.'java.home' + '/jmods'
 
     println String.join(' ', params)
-    
+
     commandLine = params
   }
 

@@ -8,6 +8,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+
 import qupath.lib.classifiers.PathClassifierTools;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServerMetadata;
@@ -37,6 +40,21 @@ public class PixelClassifierMetadata {
 	private ImageServerMetadata.ChannelType outputType = ImageServerMetadata.ChannelType.CLASSIFICATION;
 	private List<ImageChannel> outputChannels;
 	private Map<Integer, PathClass> classificationLabels;
+	
+	private String flaskAddress = null;
+	
+	
+	/**
+	 * Create a copy of an object
+	 * Taken from:
+	 * https://stackoverflow.com/questions/64036/how-do-you-make-a-deep-copy-of-an-object-in-java
+	 */
+	public static <T> T deepCopy(T anObject, Class<T> classInfo) {
+	    Gson gson = new GsonBuilder().create();
+	    String text = gson.toJson(anObject);
+	    T newObject = gson.fromJson(text, classInfo);
+	    return newObject;
+	}
 	
 	/**
      * Requested pixel size for input.
@@ -104,6 +122,13 @@ public class PixelClassifierMetadata {
     public ImageServerMetadata.ChannelType getOutputType() {
     	return outputType;
     }
+    
+    /**
+     * Output Flask Address on which the model is stored
+     */
+	public String getFlaskAddress() {
+		return flaskAddress;
+	}
 
     /**
      * List representing the names &amp; display colors for each output channel,
@@ -144,6 +169,7 @@ public class PixelClassifierMetadata {
     	this.outputHeight = builder.outputHeight;
     	this.outputType = builder.outputType;
     	this.outputChannels = builder.outputChannels;
+    	this.flaskAddress = builder.flaskAddress;
 //    	this.strictInputSize = builder.strictInputSize;
     }
     
@@ -167,6 +193,8 @@ public class PixelClassifierMetadata {
     	private ImageServerMetadata.ChannelType outputType = ImageServerMetadata.ChannelType.CLASSIFICATION;
     	private List<ImageChannel> outputChannels = new ArrayList<>();
     	
+    	private String flaskAddress = null;
+    	
     	private Map<Integer, PathClass> classificationLabels;
     	
     	/**
@@ -175,6 +203,25 @@ public class PixelClassifierMetadata {
     	 */
     	public PixelClassifierMetadata build() {
     		return new PixelClassifierMetadata(this);
+    	}
+    	
+    	
+    	public Builder setMetadata(PixelClassifierMetadata metadata) {
+    		this.inputPadding = deepCopy(metadata.getInputPadding(), Integer.class);
+    		this.inputResolution = deepCopy(metadata.getInputResolution(), PixelCalibration.class);
+    		this.inputWidth = deepCopy(metadata.getInputWidth(), Integer.class);
+    		this.inputHeight = deepCopy(metadata.getInputHeight(), Integer.class);    		
+    		this.inputNumChannels = deepCopy(metadata.getInputNumChannels(), Integer.class);
+    		
+    		this.outputWidth = deepCopy(metadata.getOutputWidth(), Integer.class);
+    		this.outputHeight = deepCopy(metadata.getOutputHeight(), Integer.class);
+    		
+    		this.outputType = deepCopy(metadata.getOutputType(), ImageServerMetadata.ChannelType.class);
+    		this.outputChannels = metadata.getOutputChannels();
+    		this.flaskAddress = deepCopy(metadata.getFlaskAddress(), String.class);
+    		
+    		return this;
+    		
     	}
     	
     	/**
@@ -248,6 +295,16 @@ public class PixelClassifierMetadata {
     		this.outputChannels.addAll(channels);
     		return this;
     	}
+    	
+    	/**
+    	 * Set the Flask address to use.
+    	 * @param flaskAddress
+    	 * @return
+    	 */
+		public Builder setFlaskAddress(String flaskAddress) {
+			this.flaskAddress = flaskAddress;
+			return this;
+		}
     	
     	/**
     	 * Specify classification labels. This may be used instead of outputChannels.

@@ -9,6 +9,7 @@ import com.google.gson.RuntimeTypeAdapterFactory;
 import com.google.gson.reflect.TypeToken;
 
 import qupath.lib.classifiers.pixel.PixelClassifier;
+import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.classes.PathClass;
 import qupath.opencv.ml.pixel.features.ColorTransforms.ColorTransform;
@@ -83,5 +84,18 @@ public class PixelClassifiers {
 			ThresholdClassifier thresholder) {
 		return new SimplePixelClassifier(featureCalculator, inputResolution, thresholder);
 	}
-
+	
+	public static PixelClassifier createPyTorchClassifier(ColorTransform transform, PixelCalibration inputResolution, PixelClassifierMetadata metadata) {
+		if (transform == null) {
+			return new PyTorchPixelClassifier(
+				null,
+				inputResolution,
+				metadata);
+		} else {
+			return new PyTorchPixelClassifier(
+					FeatureCalculators.createColorTransformFeatureCalculator(transform),
+					inputResolution,
+					metadata);
+		}
+	}
 }
