@@ -25,6 +25,7 @@ import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.writers.ImageWriterTools;
+import qupath.lib.images.writers.NumpyWriter;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.regions.RegionRequest;
@@ -65,9 +66,7 @@ public class PyTorchPixelClassifier implements PixelClassifier {
 
 		var server = imageData.getServer();
 		var img = server.readBufferedImage(request);
-		BufferedImage imgResult = null;
-
-		//ImageWriterTools.writeImageAsNumpy(img, "M:/deep_learning/toNumpy.npy");
+		BufferedImage imgResult = null;		
 
 		if (featureCalculator != null) {
 			float[] transformed;
@@ -96,7 +95,7 @@ public class PyTorchPixelClassifier implements PixelClassifier {
 		        }
 			}
 		}
-
+		
 
 		ByteArrayOutputStream stream = new ByteArrayOutputStream();
 		var imageWriter = ImageWriterTools.getCompatibleWriters(server, ".tif");
