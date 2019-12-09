@@ -24,6 +24,7 @@ import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -47,14 +48,12 @@ public class NumpyWriter implements ImageWriter<BufferedImage> {
 
 	@Override
 	public String getName() {
-		// TODO Auto-generated method stub
-		return null;
+		return "Numpy";
 	}
 
 	@Override
 	public Collection<String> getExtensions() {
-		// TODO Auto-generated method stub
-		return null;
+		return Collections.singleton("npy");
 	}
 
 	@Override
@@ -77,19 +76,25 @@ public class NumpyWriter implements ImageWriter<BufferedImage> {
 
 	@Override
 	public boolean suportsImageType(ImageServer<BufferedImage> server) {
-		// TODO Auto-generated method stub
-		return false;
+		PixelType[] supported = new PixelType[]{
+				PixelType.INT8,
+				PixelType.UINT16, 
+				PixelType.INT16, 
+				PixelType.INT32, 
+				PixelType.FLOAT32, 
+				PixelType.FLOAT64
+				};
+		
+		return server.isRGB() || Arrays.asList(supported).contains(server.getPixelType());
 	}
 
 	@Override
 	public boolean supportsPyramidal() {
-		// TODO Auto-generated method stub
 		return false;
 	}
 
 	@Override
 	public boolean supportsPixelSize() {
-		// TODO Auto-generated method stub
 		return false;
 	}
 
@@ -108,8 +113,7 @@ public class NumpyWriter implements ImageWriter<BufferedImage> {
 	@Override
 	public void writeImage(ImageServer<BufferedImage> server, RegionRequest region, String pathOutput)
 			throws IOException {
-		// TODO Auto-generated method stub
-		
+		writeImage(server, RegionRequest.createInstance(server), pathOutput);
 	}
 
 	@Override
@@ -124,15 +128,14 @@ public class NumpyWriter implements ImageWriter<BufferedImage> {
 
 	@Override
 	public void writeImage(ImageServer<BufferedImage> server, String pathOutput) throws IOException {
-		// TODO Auto-generated method stub
-		
+		writeImage(server, RegionRequest.createInstance(server), pathOutput);
 	}
 
 	@Override
 	public void writeImage(ImageServer<BufferedImage> server, RegionRequest region, OutputStream stream)
 			throws IOException {
-		// TODO Auto-generated method stub
-		
+		BufferedImage img = server.readBufferedImage(region);
+		writeImage(img, stream);
 	}
 
 	@Override
