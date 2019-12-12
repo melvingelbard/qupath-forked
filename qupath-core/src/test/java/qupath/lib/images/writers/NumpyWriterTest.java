@@ -10,7 +10,9 @@ import java.awt.image.SampleModel;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 import org.junit.Test;
 
@@ -24,14 +26,97 @@ public class NumpyWriterTest {
 		var images = new BufferedImage[] {imgGray, imgRGB};
 
 		for (var img : images) {
-			testWriter(new NumpyWriter(), img);
-			testWriter8Bit(new NumpyWriter(), img);
+			testWriter(new NumpyWriter(), new NumpyReader(), img);
+			testWriter8Bit(new NumpyWriter(), new NumpyReader(), img);
 		}
 	}
 	
-	
+	@Test
+	public void testWriterWithDifferentArrays() throws IOException {
+		boolean[] booleanArray = new boolean[] {false, true, true, true, false};
+		char[] charArray = new char[] {'a', 'b', 'c', 'd', 'e'};
+		short[] shortArray = new short[] {1, 2, 3, 4, 5};
+		int[] intArray = new int[] {1, 2, 3, 4, 5};
+		long[] longArray = new long[] {1L, 2L, 3L, 4L, 5L};
+		float[] floatArray = new float[] {(float)0.1, (float)0.2, (float)0.3, (float)0.4, (float)0.5};
+		double[] doubleArray = new double[] {0.1, 0.2, 0.3, 0.4, 0.5};
+		NumpyWriter nw = new NumpyWriter();
+		NumpyReader nr = new NumpyReader();
+		
+		byte[] bytes;
+		Object back;
+		try (var outputStream = new ByteArrayOutputStream()) {
+			// Write boolean[]
+			nw.writeAsNumpy(booleanArray, outputStream);
+			bytes = outputStream.toByteArray();
+			// Read boolean[]
+			var inputStream = new ByteArrayInputStream(bytes);
+			back = nr.readNumpyArray(inputStream);
+			Arrays.equals(booleanArray, (boolean[])back);
+						
+			// Write char[]
+			outputStream.reset();
+			nw.writeAsNumpy(charArray, outputStream);
+			bytes = outputStream.toByteArray();
+			// Read char[]
+			inputStream = new ByteArrayInputStream(bytes);
+			back = nr.readNumpyArray(inputStream);
+			Arrays.equals(charArray, (char[])back);
+			
+			// Write short[]
+			outputStream.reset();
+			nw.writeAsNumpy(shortArray, outputStream);
+			bytes = outputStream.toByteArray();
+			// Read short[]
+			inputStream = new ByteArrayInputStream(bytes);
+			back = nr.readNumpyArray(inputStream);
+			Arrays.equals(shortArray, (short[])back);
+			
+			// Write int[]
+			outputStream.reset();
+			nw.writeAsNumpy(intArray, outputStream);
+			bytes = outputStream.toByteArray();
+			// Read int[]
+			inputStream = new ByteArrayInputStream(bytes);
+			back = nr.readNumpyArray(inputStream);
+			Arrays.equals(intArray, (int[])back);
+			
+			// Write long[]
+			outputStream.reset();
+			nw.writeAsNumpy(longArray, outputStream);
+			bytes = outputStream.toByteArray();
+			// Read long[]
+			inputStream = new ByteArrayInputStream(bytes);
+			back = nr.readNumpyArray(inputStream);
+			Arrays.equals(longArray, (long[])back);
+			
+			// Write float[]
+			outputStream.reset();
+			nw.writeAsNumpy(floatArray, outputStream);
+			bytes = outputStream.toByteArray();
+			// Read float[]
+			inputStream = new ByteArrayInputStream(bytes);
+			back = nr.readNumpyArray(inputStream);
+			Arrays.equals(floatArray, (float[])back);
+			
+			// Write double[]
+			outputStream.reset();
+			nw.writeAsNumpy(doubleArray, outputStream);
+			bytes = outputStream.toByteArray();
+			// Read double[]
+			inputStream = new ByteArrayInputStream(bytes);
+			back = nr.readNumpyArray(inputStream);
+			Arrays.equals(doubleArray, (double[])back);
+			
+		} catch (IOException e) {
+			e.printStackTrace();
+			fail("Error writing/reading array: " + e.getLocalizedMessage());
+			return;
+		}
+	}
 
-	private void testWriter8Bit(NumpyWriter writer, BufferedImage img) {
+
+	private void testWriter8Bit(NumpyWriter writer, NumpyReader reader, BufferedImage img) {
 		byte[] bytes;
 		try (var stream = new ByteArrayOutputStream()) {
 			writer.writeImage(img, stream);
@@ -42,7 +127,7 @@ public class NumpyWriterTest {
 			return;
 		}
 		try (var stream = new ByteArrayInputStream(bytes)) {
-			int[][][] imgRead = writer.readNumpyArray8Bit(stream);		
+			int[][][] imgRead = reader.readNumpyAsRGBArray(stream);		
 			int[][][] imgOrig = imgTo3DimArray(img);
 			compareArrays(imgOrig, imgRead);
 		} catch (IOException e) {
@@ -69,7 +154,6 @@ public class NumpyWriterTest {
 				}
 			}
 		}
-	    
 		return out;
 	}
 
@@ -95,7 +179,7 @@ public class NumpyWriterTest {
 
 
 
-	void testWriter(NumpyWriter writer, BufferedImage img) {
+	void testWriter(NumpyWriter writer, NumpyReader reader, BufferedImage img) {
 		byte[] bytes;
 		try (var stream = new ByteArrayOutputStream()) {
 			writer.writeImage(img, stream);
@@ -106,7 +190,7 @@ public class NumpyWriterTest {
 			return;
 		}
 		try (var stream = new ByteArrayInputStream(bytes)) {
-			var imgRead = writer.readNumpyArrayAsBufferedImage(stream);
+			var imgRead = reader.readNumpyAsBufferedImage(stream);
 			compareImages(img, imgRead);
 		} catch (IOException e) {
 			e.printStackTrace();

@@ -1,50 +1,31 @@
 package qupath.lib.images.writers;
 
-import java.awt.Color;
-import java.awt.image.BandedSampleModel;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBuffer;
-import java.awt.image.DataBufferByte;
-import java.awt.image.WritableRaster;
-import java.io.BufferedWriter;
-import java.io.ByteArrayInputStream;
-import java.io.File;
 import java.io.FileOutputStream;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.lang.annotation.Native;
 import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 import java.nio.DoubleBuffer;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.nio.ShortBuffer;
-import java.nio.file.Files;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import qupath.lib.awt.common.BufferedImageTools;
-import qupath.lib.color.ColorModelFactory;
 import qupath.lib.common.ColorTools;
-import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.regions.RegionRequest;
 
 /**
- * ImageWriter implementation to write images to Numpy format.
+ * ImageWriter implementation to write and read images to/from Numpy format.
  *
  */
-
 public class NumpyWriter implements ImageWriter<BufferedImage> {
-	
-	
 
 	@Override
 	public String getName() {
@@ -58,20 +39,17 @@ public class NumpyWriter implements ImageWriter<BufferedImage> {
 
 	@Override
 	public boolean supportsT() {
-		// TODO Auto-generated method stub
 		return false;
 	}
 
 	@Override
 	public boolean supportsZ() {
-		// TODO Auto-generated method stub
 		return false;
 	}
 
 	@Override
 	public boolean supportsRGB() {
-		// TODO Auto-generated method stub
-		return false;
+		return true;
 	}
 
 	@Override
@@ -100,14 +78,13 @@ public class NumpyWriter implements ImageWriter<BufferedImage> {
 
 	@Override
 	public String getDetails() {
-		// TODO Auto-generated method stub
-		return null;
+		return "Write data using Numpy format. Accepts different formats, depending on the function used. "
+		+ "E.g. writeImage() does not accept char data, where as writeAsNumpy() does.";
 	}
 
 	@Override
 	public Class<BufferedImage> getImageClass() {
-		// TODO Auto-generated method stub
-		return null;
+		return BufferedImage.class;
 	}
 
 	@Override
@@ -147,17 +124,252 @@ public class NumpyWriter implements ImageWriter<BufferedImage> {
 
 	@Override
 	public void writeImage(ImageServer<BufferedImage> server, OutputStream stream) throws IOException {
-		// TODO Auto-generated method stub
+		writeImage(server, RegionRequest.createInstance(server), stream);
+	}
+	
+	/**
+	 * Write array to stream in Numpy format.
+	 * Array type supported: [{@code Character}, {@code Short}, 
+	 * {@code Integer}, {@code Long}, {@code Float}, {@code Double}]
+	 * @param array
+	 * @param stream
+	 * @throws IOException
+	 */
+	public void writeAsNumpy(Object array, OutputStream stream) throws IOException {
+		byte[] header = null;
+		byte[] data = null;
 		
+		if (boolean[].class.isInstance(array)) {
+			boolean[] booleanArray = (boolean[])array;
+	    	header = makeHeader("boolean", booleanArray.length);
+	    	data = arrayToNumpyByteArray(booleanArray);
+		}
+		else if (char[].class.isInstance(array)) {
+	    	char[] charArray = (char[])array;
+	    	header = makeHeader("char", charArray.length);
+	    	data = arrayToNumpyByteArray(charArray);
+	    }
+	    else if (short[].class.isInstance(array)) {
+	    	short[] shortArray = (short[])array;
+	    	header = makeHeader("short", shortArray.length);
+	    	data = arrayToNumpyByteArray(shortArray);
+	    }
+	    else if (int[].class.isInstance(array)) {
+	    	int[] intArray = (int[])array;
+	    	header = makeHeader("int", intArray.length);
+	    	data = arrayToNumpyByteArray(intArray);
+	    }
+	    else if (long[].class.isInstance(array)) {
+	    	long[] longArray = (long[])array;
+	    	header = makeHeader("long", longArray.length);
+	    	data = arrayToNumpyByteArray(longArray);
+	    }
+	    else if (float[].class.isInstance(array)) {
+	    	float[] floatArray = (float[])array;
+	    	header = makeHeader("float", floatArray.length);
+	    	data = arrayToNumpyByteArray(floatArray);
+	    }
+	    else if (double[].class.isInstance(array)) {
+	    	double[] doubleArray = (double[])array;
+	    	header = makeHeader("double", doubleArray.length);
+	    	data = arrayToNumpyByteArray(doubleArray);
+	    } else {
+	    	throw new UnsupportedOperationException("Data type not supported.");
+	    }
+	    
+	    stream.write(header);
+	    stream.write(data);
+	}
+	
+	
+	/**
+	 * Write array to file in Numpy format.
+	 * Array type supported: [{@code Character}, {@code Short}, 
+	 * {@code Integer}, {@code Long}, {@code Float}, {@code Double}]
+	 * @param array
+	 * @param pathOutput
+	 * @throws IOException
+	 */
+	public void writeAsNumpy(Object array, String pathOutput) throws IOException {
+		byte[] header = null;
+		byte[] data = null;
+		
+		if (char[].class.isInstance(array)) {
+	    	char[] charArray = (char[])array;
+	    	header = makeHeader("char", charArray.length);
+	    	data = arrayToNumpyByteArray(charArray);
+	    }
+	    else if (short[].class.isInstance(array)) {
+	    	short[] shortArray = (short[])array;
+	    	header = makeHeader("short", shortArray.length);
+	    	data = arrayToNumpyByteArray(shortArray);
+	    }
+	    else if (int[].class.isInstance(array)) {
+	    	int[] intArray = (int[])array;
+	    	header = makeHeader("int", intArray.length);
+	    	data = arrayToNumpyByteArray(intArray);
+	    }
+	    else if (long[].class.isInstance(array)) {
+	    	long[] longArray = (long[])array;
+	    	header = makeHeader("long", longArray.length);
+	    	data = arrayToNumpyByteArray(longArray);
+	    }
+	    else if (float[].class.isInstance(array)) {
+	    	float[] floatArray = (float[])array;
+	    	header = makeHeader("float", floatArray.length);
+	    	data = arrayToNumpyByteArray(floatArray);
+	    }
+	    else if (double[].class.isInstance(array)) {
+	    	double[] doubleArray = (double[])array;
+	    	header = makeHeader("double", doubleArray.length);
+	    	data = arrayToNumpyByteArray(doubleArray);
+	    } else {
+	    	throw new UnsupportedOperationException("Data type not supported.");
+	    }
+	    
+		FileOutputStream fos = new FileOutputStream(pathOutput);
+        fos.write(header);
+        fos.write(data);
+        fos.close();
+	}
+	
+	
+	private byte[] arrayToNumpyByteArray(boolean[] array) {
+		int length = array.length;
+		byte[] data = new byte[length*1];
+		
+		for (int i = 0; i < data.length; i++)
+			data[i] = array[i] == true ? (byte)1 : (byte)0;
+		return data;
+	}
+	
+	private byte[] arrayToNumpyByteArray(char[] array) {
+		int length = array.length;
+		byte[] data = new byte[length*2];
+		
+		for (int i = 0; i < data.length; i++) {
+            data[i] =  ByteBuffer.allocate(2).putChar(array[i/2]).array()[i%2];
+        }
+		return data;
+	}
+	
+	private byte[] arrayToNumpyByteArray(short[] array) {
+		int length = array.length;
+		byte[] data = new byte[length*2];
+		
+		for (int i = 0; i < data.length; i++) {
+            data[i] =  ByteBuffer.allocate(2).putShort(array[i/2]).array()[i%2];
+        }
+		return data;
+	}
+	
+	private byte[] arrayToNumpyByteArray(int[] array) {
+		int length = array.length;
+		byte[] data = new byte[length*4];
+		
+		for (int i = 0; i < data.length; i++) {
+            data[i] =  ByteBuffer.allocate(4).putInt(array[i/4]).array()[i%4];
+        }
+		return data;
+	}
+	
+	private byte[] arrayToNumpyByteArray(long[] array) {
+		int length = array.length;
+		byte[] data = new byte[length*8];
+		
+		for (int i = 0; i < data.length; i++) {
+            data[i] =  ByteBuffer.allocate(8).putLong(array[i/8]).array()[i%8];
+        }
+		return data;
+	}
+	
+	private byte[] arrayToNumpyByteArray(float[] array) {
+		int length = array.length;
+		byte[] data = new byte[length*4];
+		
+		for (int i = 0; i < data.length; i++) {
+            data[i] =  ByteBuffer.allocate(4).putFloat(array[i/4]).array()[i%4];
+        }
+		return data;
+	}
+	
+	private byte[] arrayToNumpyByteArray(double[] array) {
+		int length = array.length;
+		byte[] data = new byte[length*8];
+		
+		for (int i = 0; i < data.length; i++) {
+            data[i] =  ByteBuffer.allocate(8).putDouble(array[i/8]).array()[i%8];
+        }
+		return data;
+	}
+	
+	
+	/**
+	 * Create and return Numpy file header as a byte array.
+	 * @param dataType
+	 * @param length
+	 * @return header
+	 */
+	private byte[] makeHeader(String dataType, int length) {
+		byte[] header = new byte[128];
+		int index = 0;
+
+		int magicNumber = (0x93);
+		String numpyString = "NUMPY";
+        int majorVersionNum = (0x01);
+        int minorVersionNum = (0x00);
+        
+        // (0x93)
+        header[index++] = (byte)magicNumber;
+        
+        // NUMPY
+        for (int i = 0; i < numpyString.toCharArray().length; i++) header[index++] = (byte)numpyString.toCharArray()[i];
+        
+        // 10
+        header[index++] = (byte)majorVersionNum;
+        header[index++] = (byte)minorVersionNum;
+
+        // HEADER_LENGTH
+        header[index++] = (byte)(0x76);
+        header[index++] = (byte)(0x00);
+        
+        // {'descr: '
+        String descr = "{'descr': '";
+        for (int i = 0; i < descr.toCharArray().length; i++) header[index++] = (byte)descr.toCharArray()[i];
+
+        Map<String, String> formats = Map.of(
+        		"boolean", "|b1",	// byte
+        		"short", "|i2",		// int16
+        	    "int", "|i4",		// int32
+        	    "long", "|i8",		// int64
+        	    "float", "<f4",		// float32
+        	    "double", "<f8", 	// float64
+        	    "char", "<U2"		// string8
+        	);
+        
+        String format = formats.get(dataType);
+        
+        // Convert format String to bytes
+        for (int i = 0; i < format.toCharArray().length; i++) header[index++] = (byte)format.toCharArray()[i];
+        
+        // Metadata
+        String shape = "', 'fortran_order': False, 'shape': (" + length + "), }";
+        for (int i = 0; i < shape.toCharArray().length; i++) header[index++] = (byte)shape.toCharArray()[i];
+        
+        // BLANK_SPACE
+        while (index < 127) header[index++] = (byte)(0x20);
+        header[127] = (byte)(0x0A);
+        
+        return header;
 	}
 
 	/**
-	 * Encode a BufferedImage in Numpy array representation to a byte array.
+	 * Convert a BufferedImage to a byte array in Numpy format.
 	 * Compatible formats: [uint8, uint16, uint32, int8, int16, int32, float32, float64].
 	 * @param img
 	 * @return byteArray
 	 */
-	public static byte[] imageToNumpyByteArray(BufferedImage img) {
+	private static byte[] imageToNumpyByteArray(BufferedImage img) {
 		int width = img.getWidth();
 		int height = img.getHeight();
 		int bands = img.getSampleModel().getNumBands();
@@ -213,8 +425,8 @@ public class NumpyWriter implements ImageWriter<BufferedImage> {
         // BLANK_SPACE
         while (index < 127) header[index++] = (byte)(0x20);
         header[127] = (byte)(0x0A);
-        
-        
+             
+        // Data
     	int nPixels = width * height;
     	byte[] dataArrayForNumpy;
         if (BufferedImageTools.is8bitColorType(img.getType())){
@@ -258,6 +470,19 @@ public class NumpyWriter implements ImageWriter<BufferedImage> {
         		}
         		break;
         		
+        	case DataBuffer.TYPE_INT:
+        		dataArray = new byte[nPixels * bands * 4];
+        		int[] tempInt = new int[nPixels];
+        		bufBytes = ByteBuffer.wrap(dataArray);
+        		IntBuffer bufInt = bufBytes.asIntBuffer();
+        		for (int b = 0; b < bands; b++) {
+        			img.getSampleModel().getSamples(0, 0, width, height, b, tempInt, img.getRaster().getDataBuffer());
+        			for (int i = 0; i < nPixels; i++) {
+        				bufInt.put(nPixels * b + i, tempInt[i]);
+        			}
+        		}
+        		break;
+        		
         	case DataBuffer.TYPE_FLOAT:
         		dataArray = new byte[nPixels * bands * 4];
         		float[] tempFloat = new float[nPixels];
@@ -282,19 +507,6 @@ public class NumpyWriter implements ImageWriter<BufferedImage> {
         			}
         		}
         		break;
-        	
-        	case DataBuffer.TYPE_INT:
-        		dataArray = new byte[nPixels * bands * 8];
-        		int[] tempInt = new int[nPixels];
-        		bufBytes = ByteBuffer.wrap(dataArray);
-        		IntBuffer bufInt = bufBytes.asIntBuffer();
-        		for (int b = 0; b < bands; b++) {
-        			img.getSampleModel().getSamples(0, 0, width, height, b, tempInt, img.getRaster().getDataBuffer());
-        			for (int i = 0; i < nPixels; i++) {
-        				bufInt.put(nPixels * b + i, tempInt[i]);
-        			}
-        		}
-        		break;
         	default:
         		throw new UnsupportedOperationException("Unsupported transfer type " + type);
         	}
@@ -310,166 +522,6 @@ public class NumpyWriter implements ImageWriter<BufferedImage> {
         while (indexOut < totalLength) out[indexOut] = dataArrayForNumpy[-header.length+indexOut++];
         
 		return out;
-	}
-	
-	public int[][][] readNumpyArray8Bit(ByteArrayInputStream bais) throws IOException {
-		byte[] bytes = new byte[bais.available()];
-		bais.read(bytes);
-		int[][][] out = byteToArray8Bit(bytes);
-		return out;
-		
-		
-	}
-	
-	public int[][][] readNumpyArray8Bit(String pathInput) throws IOException {
-		File file = new File(pathInput);
-		byte[] bytes = Files.readAllBytes(file.toPath());
-		int[][][] out = byteToArray8Bit(bytes);
-		return out;
-	}
-	
-	
-	/**
-	 * Takes a byte array and returns a multi-dimensional array representing the pixel values per band.
-	 * This function only accepts Numpy data types |i1 (signed-8bit) and |u1 (unsigned-8bit).
-	 * @param bytes
-	 * @return int[][][]
-	 * @throws IOException
-	 */
-	public static int[][][] byteToArray8Bit(byte[] bytes) throws IOException {
-		byte magicNumber = (byte)(0x93);
-		
-		if (bytes[0] != magicNumber) throw new IOException("Input must be Numpy file");
-		
-		// File separation into header/data
-		String bytesAsString = new String(bytes);
-		String header = (String)bytesAsString.subSequence(0, 128);
-		
-		
-		// Format (e.g. |i1, <u2, |i2, |i4, <f4, <f8, ..)
-		String format = (String) bytesAsString.subSequence(21, 24);
-		
-		if (!format.equals("|i1") && !format.equals("|u1")) 
-			throw new UnsupportedOperationException("Wrong data type: " + format + " instead of " + "|i1 or |u1");
-		
-		// Shape and dimension
-		String shape = (String) header.subSequence(61, header.lastIndexOf('}')-3);
-        String[] dimensionList = shape.replaceAll("\\s+", "").split(",");
-        
-        if (dimensionList.length < 2 || dimensionList.length > 3)
-        	throw new IOException("Number of dimensions not supported: " + dimensionList.toString());
-        
-        int width = Integer.valueOf(dimensionList[0]);
-        int height = Integer.valueOf(dimensionList[1]);
-        
-        int bands;
-        if (dimensionList.length == 2) bands = 1;
-        else bands = Integer.valueOf(dimensionList[2]);
-        
-        int nPixels = width * height * bands;
-
-        // Data
-		int[][][] out = new int[width][height][bands];
-	    
-		for (int pixelByte = 0; pixelByte < nPixels; pixelByte++) {
-			int outPixel = format.equals("|u1") ? (bytes[pixelByte+128] & 0xFF) : bytes[pixelByte+128];
-			out[(pixelByte / bands) % height][(pixelByte / (height*bands))][pixelByte % bands] = outPixel;	
-		}
-		
-		return out;
-		
-	}
-	
-	public BufferedImage readNumpyArrayAsBufferedImage(ByteArrayInputStream bais) throws IOException {
-		byte[] bytes = new byte[bais.available()];
-		bais.read(bytes);
-		BufferedImage img = byteToBufferedImage(bytes);
-		return img;
-	}
-	
-	public BufferedImage byteToBufferedImage(String pathInput) throws IOException {
-		File file = new File(pathInput);
-		byte[] bytes = Files.readAllBytes(file.toPath());
-		BufferedImage img = byteToBufferedImage(bytes);
-		return img;
-		
-	}
-
-	
-	/**
-	 * Read Numpy file from given path and creates a BufferedImage from its data.
-	 * Assumes this order (in Numpy file): [width, height, channels].
-	 * Compatible formats: [int8, int16, uint16, int32, float32, float64].
-	 * @param pathInput
-	 * @return BufferedImage
-	 */
-	public BufferedImage byteToBufferedImage(byte[] bytes) throws IOException {
-		byte magicNumber = (byte)(0x93);
-		if (bytes[0] != magicNumber) throw new IOException("Input must be Numpy format");
-		
-		// Separation into header/data
-		String bytesAsString = new String(bytes);
-		String header = (String)bytesAsString.subSequence(0, 128);
-		byte[] data = Arrays.copyOfRange(bytes, 128, bytes.length);
-		
-		// Format (e.g. |i1, <u2, |i2, |i4, <f4, <f8, ..)
-		String format = (String) bytesAsString.subSequence(21, 24);
-		
-		//if (format != "|i1") throw new UnsupportedOperationException("Wrong data type: " + format + " instead of " + "|i1");
-		
-		// Shape and dimension
-		String shape = (String) header.subSequence(61, header.lastIndexOf('}')-3);
-        shape = shape.replaceAll("\\s+", "");
-        String[] dimensionList = shape.split(",");
-        int totalDataSize = 1;
-        for (String dimension: dimensionList) totalDataSize *= Integer.valueOf(dimension);
-        int width = Integer.valueOf(dimensionList[0]);
-        int height = Integer.valueOf(dimensionList[1]);
-        int channels = Integer.valueOf(dimensionList[2]);
-        
-        // Data
-        PixelType pt;
-        BandedSampleModel sampleModel;
-        switch (format) {
-        case "|u1":
-        case "|i1":
-        	pt = PixelType.INT8;
-	        sampleModel = new BandedSampleModel(DataBufferByte.TYPE_BYTE, width, height, channels);
-	        break;
-
-        case "<u2":
-        	pt = PixelType.UINT16;
-	        sampleModel = new BandedSampleModel(DataBufferByte.TYPE_USHORT, width, height, channels);
-	        break;
-        	
-        case "|i2":
-        	pt = PixelType.INT16;
-	        sampleModel = new BandedSampleModel(DataBufferByte.TYPE_SHORT, width, height, channels);
-	        break;
-        	
-        case "|i4":
-        	pt = PixelType.INT32;
-	        sampleModel = new BandedSampleModel(DataBufferByte.TYPE_INT, width, height, channels);
-	        break;
-        	
-        case "<f4":
-        	pt = PixelType.FLOAT32;
-	        sampleModel = new BandedSampleModel(DataBufferByte.TYPE_FLOAT, width, height, channels);
-	        break;
-        	
-        case "<f8":
-        	pt = PixelType.FLOAT64;
-	        sampleModel = new BandedSampleModel(DataBufferByte.TYPE_DOUBLE, width, height, channels);
-        	break;
-        	
-        default:
-        	throw new UnsupportedOperationException("Unsupported data type " + format);
-        }
-        DataBufferByte dataBuffer = new DataBufferByte(data, totalDataSize);
-        WritableRaster raster = WritableRaster.createWritableRaster(sampleModel, dataBuffer, null);
-        BufferedImage img = new BufferedImage(ColorModelFactory.createColorModel(pt, ImageChannel.getDefaultChannelList(channels)), raster, false, null);		
-        
-        return img;
 	}
 	
 	
