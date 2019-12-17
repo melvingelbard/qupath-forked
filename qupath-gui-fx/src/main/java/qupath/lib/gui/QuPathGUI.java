@@ -2533,7 +2533,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			}
 			ImageServer<BufferedImage> serverNew = null;
 
-			// MELVIN FROM HERE
 			List<ImageServer<BufferedImage>> serverList = ImageServerProvider.getServerList(pathNew, BufferedImage.class);
 			
 			if (serverList.size() == 0) return false;	// Should throw Exception?
@@ -2642,7 +2641,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		nameCol.setStyle( "-fx-alignment: CENTER;");
 		
 		
-		
 		tableSeries.setItems(serverList);
 		tableSeries.getColumns().addAll(nameCol, thumbnailCol);
 		
@@ -2695,15 +2693,13 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		ButtonType typeImport = new ButtonType("Import", ButtonData.OK_DONE);
 		dialog.getDialogPane().getButtonTypes().addAll(typeImport, ButtonType.CANCEL);
 		dialog.getDialogPane().setContent(pane);
-		
-		tableSeries.setRowFactory(tv -> {
-		    TableRow<ImageServer<BufferedImage>> selectedRow = new TableRow<>();
-		    selectedRow.setOnMouseClicked(event -> {
-		    	selectedSeries = selectedRow.getItem();
+
+		tableSeries.getSelectionModel().selectedItemProperty().addListener((obs, previousSelectdRow, selectedRow) -> {
+		    if (selectedRow != null) {
+		    	selectedSeries = selectedRow;
 		    	indexList.removeAll(indexList);
 		    	indexList.addAll(indices);
-		    });
-		    return selectedRow;
+		    }
 		});
 		
 		Optional<ButtonType> result = dialog.showAndWait();

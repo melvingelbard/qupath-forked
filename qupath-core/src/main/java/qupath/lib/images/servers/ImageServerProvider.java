@@ -253,7 +253,7 @@ public class ImageServerProvider {
 	 * @param path path to an image - typically a URI
 	 * @param cls desired generic type for the ImageServer, e.g. BufferedImage.class
 	 * @param args optional arguments, which may be used by some builders
-	 * @return
+	 * @return list of {@code ImageServer} objects
 	 * @throws IOException 
 	 */
 	public static <T> List<ImageServer<T>> getServerList(final String path, final Class<T> cls, String... args) throws IOException {
