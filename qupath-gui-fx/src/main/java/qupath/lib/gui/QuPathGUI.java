@@ -2541,7 +2541,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			} else {
 				ObservableList<ImageServer<BufferedImage>> serverObservableList = FXCollections.observableArrayList();
 				for (ImageServer<BufferedImage> imageServer: serverList) serverObservableList.add(imageServer);
-				List<ImageServer<BufferedImage>> serverImagesToOpen = promptSerieChooser(this, serverObservableList);
+				List<ImageServer<BufferedImage>> serverImagesToOpen = promptSerieSelector(this, serverObservableList);
 				
 				// Only allows one image to be opened
 				if (!serverImagesToOpen.isEmpty()) serverNew = serverImagesToOpen.get(0);
@@ -2589,15 +2589,14 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	}
 	
 	private ObservableValue<String> getSerieQuickInfo(ImageServer<BufferedImage> imageServer, int index) {
-		String micronSymbol = Character.toString((char)181);
 		String filePath = imageServer.getURIs().iterator().next().toString();
 		String serverType = imageServer.getServerType();
 		String width = "" + imageServer.getWidth() + " px";
 		String height = "" + imageServer.getHeight() + " px";
-		double pixelWidthTemp = imageServer.getMetadata().getPixelWidthMicrons();
-		String pixelWidth = "" + ((double)Math.round(pixelWidthTemp * 10000d) / 10000d) + " " + micronSymbol + "m";
-		double pixelHeightTemp = imageServer.getMetadata().getPixelHeightMicrons();
-		String pixelHeight = "" + ((double)Math.round(pixelHeightTemp * 10000d) / 10000d) + " " + micronSymbol + "m";
+		double pixelWidthTemp = imageServer.getPixelCalibration().getPixelWidth().doubleValue();
+		String pixelWidth = GeneralTools.formatNumber(pixelWidthTemp, 4) + " " + imageServer.getPixelCalibration().getPixelWidthUnit();
+		double pixelHeightTemp = imageServer.getPixelCalibration().getPixelHeight().doubleValue();
+		String pixelHeight = GeneralTools.formatNumber(pixelHeightTemp, 4) + " " + imageServer.getPixelCalibration().getPixelHeightUnit();
 		String pixelType = imageServer.getPixelType().toString();
 		String nChannels = String.valueOf(imageServer.nChannels());
 		String nResolutions = String.valueOf(imageServer.nResolutions());
@@ -2608,7 +2607,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 
 	
 	@SuppressWarnings("unchecked")
-	public List<ImageServer<BufferedImage>> promptSerieChooser(QuPathGUI qupath, ObservableList<ImageServer<BufferedImage>> serverList) {		
+	public List<ImageServer<BufferedImage>> promptSerieSelector(QuPathGUI qupath, ObservableList<ImageServer<BufferedImage>> serverList) {		
 		// Series table
 		TableView<ImageServer<BufferedImage>> tableSeries = new TableView<>();
 		TableColumn<ImageServer<BufferedImage>, String> nameCol = new TableColumn<ImageServer<BufferedImage>, String>("Name");
@@ -2627,7 +2626,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			try {
 				temp = ProjectImportImagesCommand.getThumbnailRGB(cellData.getValue(), null);
 			} catch (IOException e) {
-				e.printStackTrace();
+				logger.warn("Error loading thumbnail: " + e.getLocalizedMessage(), e);
 			}
 			Image image = SwingFXUtils.toFXImage(temp, null);
 			ImageView imageView = new ImageView(image);
@@ -2643,9 +2642,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		
 		tableSeries.setItems(serverList);
 		tableSeries.getColumns().addAll(nameCol, thumbnailCol);
-		
-		TitledPane paneList = new TitledPane("Image Selection", tableSeries);
-		paneList.setCollapsible(false);
 		
 		
 		// Info Pane - Changes according to selected series
@@ -2673,28 +2669,25 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		tableInfo.setItems(indexList);
 		tableInfo.getColumns().addAll(attributeCol, valueCol);
 		
-		
-		TitledPane paneInfo = new TitledPane("Information", tableInfo);
+
+		BorderPane paneSelector = new BorderPane();
+		BorderPane paneSeries = new BorderPane(tableSeries);
+		BorderPane paneInfo = new BorderPane(tableInfo);
 		paneInfo.setMaxHeight(100);
-		paneInfo.setCollapsible(false);
-		
+		paneSelector.setCenter(paneSeries);
+		paneSelector.setBottom(paneInfo);
 
-		BorderPane paneImages = new BorderPane();
-		paneImages.setCenter(paneList);
-		paneImages.setBottom(paneInfo);
-
-		
 		BorderPane pane = new BorderPane();
-		pane.setCenter(paneImages);
+		pane.setCenter(paneSelector);
 		
 		
 		Dialog<ButtonType> dialog = new Dialog<>();
-		dialog.setTitle("Import image");
-		ButtonType typeImport = new ButtonType("Import", ButtonData.OK_DONE);
+		dialog.setTitle("Open image");
+		ButtonType typeImport = new ButtonType("Open", ButtonData.OK_DONE);
 		dialog.getDialogPane().getButtonTypes().addAll(typeImport, ButtonType.CANCEL);
 		dialog.getDialogPane().setContent(pane);
 
-		tableSeries.getSelectionModel().selectedItemProperty().addListener((obs, previousSelectdRow, selectedRow) -> {
+		tableSeries.getSelectionModel().selectedItemProperty().addListener((obs, previousSelectedRow, selectedRow) -> {
 		    if (selectedRow != null) {
 		    	selectedSeries = selectedRow;
 		    	indexList.removeAll(indexList);
@@ -2702,12 +2695,23 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		    }
 		});
 		
+		tableSeries.setRowFactory( tv -> {
+		    TableRow<ImageServer<BufferedImage>> row = new TableRow<>();
+		    row.setOnMouseClicked(event -> {
+		        if (event.getClickCount() == 2 && (!row.isEmpty()) ) {
+		        	selectedSeries = row.getItem();
+		        	Button okButton = (Button) dialog.getDialogPane().lookupButton(typeImport);
+		        	okButton.fire();
+		        }
+		    });
+		    return row;
+		});
+		
 		Optional<ButtonType> result = dialog.showAndWait();
 		if (!result.isPresent() || result.get() != typeImport || result.get() == ButtonType.CANCEL)
 			return Collections.emptyList();
 		
 		return tableSeries.getSelectionModel().getSelectedItems();
-		
 	}
 
 	public ImageData<BufferedImage> createNewImageData(final ImageServer<BufferedImage> server) {
