@@ -472,7 +472,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	private ScriptMenuLoader sharedScriptMenuLoader;
 //	private ScriptMenuLoader projectScriptMenuLoader;
 	
-	private ImageServer selectedSeries = null;
+	private ImageServer<BufferedImage> selectedSeries = null;
 	
 	private DragDropFileImportListener dragAndDrop = new DragDropFileImportListener(this);
 	
