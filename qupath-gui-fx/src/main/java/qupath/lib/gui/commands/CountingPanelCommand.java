@@ -54,8 +54,8 @@ import qupath.lib.gui.QuPathGUI.GUIActions;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.panels.CountingPanel;
-import qupath.lib.gui.panels.PathAnnotationPanel;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.io.PointIO;
@@ -168,14 +168,14 @@ public class CountingPanelCommand implements PathCommand, ImageDataChangeListene
 				if (file == null)
 					return;
 				try {
-					PointIO.writePointsObjectsList(file, pointsList, PathPrefs.getColorDefaultAnnotations());
+					PointIO.writePointsObjectsList(file, pointsList, PathPrefs.getColorDefaultObjects());
 				} catch (IOException e) {
 					Dialogs.showErrorMessage("Save points error", e);
 				}
 			}
 		);
 		
-		GridPane panelLoadSave = PathAnnotationPanel.createColumnGridControls(
+		GridPane panelLoadSave = PaneTools.createColumnGridControls(
 				btnLoad,
 				btnSave
 				);

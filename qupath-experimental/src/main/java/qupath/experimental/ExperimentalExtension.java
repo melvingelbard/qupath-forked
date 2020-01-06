@@ -14,6 +14,7 @@ import qupath.lib.gui.ml.commands.PyTorchClassifierCommand;
 import qupath.lib.gui.ml.commands.PixelClassifierCommand;
 import qupath.lib.gui.ml.commands.SimpleThresholdCommand;
 import qupath.lib.gui.ml.commands.SplitProjectTrainingCommand;
+import qupath.lib.gui.tools.MenuTools;
 import qupath.lib.io.GsonTools;
 import qupath.opencv.ml.pixel.PixelClassifiers;
 import qupath.opencv.ml.pixel.features.FeatureCalculators;
@@ -37,7 +38,7 @@ public class ExperimentalExtension implements QuPathExtension {
 //		PixelClassifiers.PixelClassifierTypeAdapterFactory.registerSubtype(OpenCVPixelClassifierDNN.class);
     	FeatureCalculators.initialize();
     	
-        QuPathGUI.addMenuItems(
+    	MenuTools.addMenuItems(
                 qupath.getMenu("Classify>Pixel classification", true),
                 QuPathGUI.createCommandAction(new PixelClassifierCommand(), "Train pixel classifier (experimental)", null, new KeyCodeCombination(KeyCode.P, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN)),
                 QuPathGUI.createCommandAction(new PixelClassifierLoadCommand(qupath), "Load pixel classifier (experimental)"),
@@ -45,12 +46,12 @@ public class ExperimentalExtension implements QuPathExtension {
                 QuPathGUI.createCommandAction(new PyTorchClassifierCommand(qupath), "Load PyTorch classifier (experimental)")
 //                QuPathGUI.createCommandAction(new OpenCvClassifierCommand2(qupath), "Object classifier (experimental)")
         );
-        QuPathGUI.addMenuItems(
+    	MenuTools.addMenuItems(
                 qupath.getMenu("Analyze", true),
                 QuPathGUI.createCommandAction(new InteractiveImageAlignmentCommand(qupath), "Interactive image alignment (experimental)")
         );
         
-		QuPathGUI.addMenuItems(
+    	MenuTools.addMenuItems(
 				qupath.getMenu("Extensions>AI", true),
 				QuPathGUI.createCommandAction(new SplitProjectTrainingCommand(qupath), "Split project train/validation/test"),
 				QuPathGUI.createCommandAction(new CreateRegionAnnotationsCommand(qupath), "Create region annotations"),
