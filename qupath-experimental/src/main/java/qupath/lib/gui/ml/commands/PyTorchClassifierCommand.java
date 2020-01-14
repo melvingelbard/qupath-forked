@@ -1,15 +1,12 @@
 package qupath.lib.gui.ml.commands;
 
-import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -37,9 +34,8 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.ml.PixelClassificationOverlay;
-import qupath.lib.gui.ml.PixelClassifierImageSelectionPane;
-import qupath.lib.gui.ml.PixelClassifierTools;
-import qupath.lib.gui.ml.PixelClassifierImageSelectionPane.ClassificationResolution;
+import qupath.lib.gui.ml.PixelClassifierPane;
+import qupath.lib.gui.ml.PixelClassifierPane.ClassificationResolution;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.PathOverlay;
 import qupath.lib.gui.tools.PaneTools;
@@ -225,7 +221,7 @@ public class PyTorchClassifierCommand implements PathCommand {
 		var imageData = viewer.getImageData();
 
 
-		comboResolutions.getItems().setAll(PixelClassifierImageSelectionPane.getDefaultResolutions(imageData, selectedResolution.get()));
+		comboResolutions.getItems().setAll(PixelClassifierPane.getDefaultResolutions(imageData, selectedResolution.get()));
 		if (selectedResolution.get() == null)
 			comboResolutions.getSelectionModel().selectLast();
 
