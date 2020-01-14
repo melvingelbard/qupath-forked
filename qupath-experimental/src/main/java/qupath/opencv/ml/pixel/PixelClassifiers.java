@@ -84,17 +84,10 @@ public class PixelClassifiers {
 		return new SimplePixelClassifier(featureCalculator, inputResolution, thresholder);
 	}
 	
-	public static PixelClassifier createPyTorchClassifier(ColorTransform transform, PixelCalibration inputResolution, PixelClassifierMetadata metadata) {
-		if (transform == null) {
-			return new PyTorchPixelClassifier(
-				null,
-				inputResolution,
-				metadata);
-		} else {
-			return new PyTorchPixelClassifier(
-					FeatureCalculators.createColorTransformFeatureCalculator(transform),
-					inputResolution,
-					metadata);
-		}
+	public static PixelClassifier createPyTorchClassifier(PixelCalibration inputResolution, PixelClassifierMetadata metadata) {
+		return new PyTorchPixelClassifier(
+			null,
+			inputResolution,
+			metadata);
 	}
 }

@@ -1,5 +1,6 @@
 package qupath.lib.classifiers.pixel;
 
+import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -13,6 +14,7 @@ import com.google.gson.GsonBuilder;
 
 import qupath.lib.classifiers.PathClassifierTools;
 import qupath.lib.images.servers.ImageChannel;
+import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.classes.PathClass;
@@ -37,6 +39,8 @@ public class PixelClassifierMetadata {
 	private int outputWidth = -1;
 	private int outputHeight = -1;
 	
+	private List<String> inputChannelNames;
+	private ImageChannel[] inputChannels;
 	private ImageServerMetadata.ChannelType outputType = ImageServerMetadata.ChannelType.CLASSIFICATION;
 	private List<ImageChannel> outputChannels;
 	private Map<Integer, PathClass> classificationLabels;
@@ -129,6 +133,18 @@ public class PixelClassifierMetadata {
 	public String getFlaskAddress() {
 		return flaskAddress;
 	}
+	
+	/**
+	 * Output a list of all the channels used as input
+	 */
+	public synchronized ImageChannel[] getInputChannels(){
+		return inputChannels;
+	}
+
+	
+	public List<String> getInputChannelName() {
+		return inputChannelNames;
+	}
 
     /**
      * List representing the names &amp; display colors for each output channel,
@@ -163,7 +179,9 @@ public class PixelClassifierMetadata {
     	this.inputPadding = builder.inputPadding;
     	this.inputWidth = builder.inputWidth;
     	this.inputHeight = builder.inputHeight;
+    	this.inputChannels = builder.inputChannels;
     	this.inputNumChannels = builder.inputNumChannels;
+    	this.inputChannelNames = builder.inputChannelNames;
     	this.classificationLabels = builder.classificationLabels;
     	this.outputWidth = builder.outputWidth;
     	this.outputHeight = builder.outputHeight;
@@ -190,6 +208,8 @@ public class PixelClassifierMetadata {
     	private int outputWidth = -1;
     	private int outputHeight = -1;
     	
+    	private List<String> inputChannelNames = new ArrayList<>();
+    	private ImageChannel[] inputChannels;
     	private ImageServerMetadata.ChannelType outputType = ImageServerMetadata.ChannelType.CLASSIFICATION;
     	private List<ImageChannel> outputChannels = new ArrayList<>();
     	
@@ -210,7 +230,9 @@ public class PixelClassifierMetadata {
     		this.inputPadding = deepCopy(metadata.getInputPadding(), Integer.class);
     		this.inputResolution = deepCopy(metadata.getInputResolution(), PixelCalibration.class);
     		this.inputWidth = deepCopy(metadata.getInputWidth(), Integer.class);
-    		this.inputHeight = deepCopy(metadata.getInputHeight(), Integer.class);    		
+    		this.inputHeight = deepCopy(metadata.getInputHeight(), Integer.class);
+    		this.inputChannelNames = metadata.getInputChannelName();
+    		this.inputChannels = metadata.getInputChannels();
     		this.inputNumChannels = deepCopy(metadata.getInputNumChannels(), Integer.class);
     		
     		this.outputWidth = deepCopy(metadata.getOutputWidth(), Integer.class);
@@ -264,6 +286,22 @@ public class PixelClassifierMetadata {
     	public Builder inputShape(int width, int height) {
     		this.inputWidth = width;
     		this.inputHeight = height;
+    		return this;
+    	}
+    	
+    	
+    	/**
+    	 * Specify channels for input
+    	 * @param server
+    	 * @return
+    	 */
+    	public Builder inputChannels(ImageServer<BufferedImage> server) {
+    		if (this.inputChannels != null) Arrays.fill(this.inputChannels, null);
+    		else this.inputChannels = new ImageChannel[this.inputChannelNames.size()];
+    		
+    		for (int i = 0; i < this.inputChannelNames.size(); i++) {
+    			this.inputChannels[i] = (ImageChannel.getInstance(this.inputChannelNames.get(i), null));
+    		}
     		return this;
     	}
     	

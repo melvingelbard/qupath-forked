@@ -28,8 +28,11 @@ import qupath.lib.images.writers.ImageWriterTools;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.regions.RegionRequest;
+import qupath.opencv.ml.pixel.features.ColorTransforms;
 import qupath.opencv.ml.pixel.features.FeatureCalculator;
+import qupath.opencv.ml.pixel.features.FeatureCalculators;
 import qupath.opencv.ml.pixel.features.PixelFeature;
+import qupath.opencv.ml.pixel.features.ColorTransforms.ColorTransform;
 
 
 public class PyTorchPixelClassifier implements PixelClassifier {
@@ -65,9 +68,16 @@ public class PyTorchPixelClassifier implements PixelClassifier {
 
 		var server = imageData.getServer();
 		var img = server.readBufferedImage(request);
-		BufferedImage imgResult = null;		
-
-		if (featureCalculator != null) {
+		BufferedImage imgResult = null;
+		
+		ImageChannel[] channelsToClassify = metadata.getInputChannels();
+		if (channelsToClassify != null && channelsToClassify.length != 0) {
+			ColorTransform[] colorTransforms = new ColorTransform[channelsToClassify.length];
+			for (int i = 0; i < metadata.getInputNumChannels(); i++) {
+				colorTransforms[i] = ColorTransforms.createChannelExtractor(channelsToClassify[i].getName());
+			}
+			featureCalculator = FeatureCalculators.createColorTransformFeatureCalculator(colorTransforms);
+			
 			float[] transformed;
 			List<PixelFeature> features;
 			try {
@@ -76,6 +86,7 @@ public class PyTorchPixelClassifier implements PixelClassifier {
 				features = new ArrayList<PixelFeature>();
 			}
 
+			// TODO: make the featureCalculator work for extracting more than one channel
 			if (features.size() == 1) {
 				var feature = features.get(0).getFeature();
 				transformed = SimpleImages.getPixels(feature, true);
@@ -99,7 +110,8 @@ public class PyTorchPixelClassifier implements PixelClassifier {
 		ByteArrayOutputStream stream = new ByteArrayOutputStream();
 		var imageWriter = ImageWriterTools.getCompatibleWriters(server, ".tif");
 		try {
-			imageWriter.get(0).writeImage(server, request, stream);
+			//imageWriter.get(0).writeImage(server, request, stream);
+			imageWriter.get(0).writeImage(img, stream);
 		} catch (IOException ex) {
 			Dialogs.showErrorMessage("Image Format", ex);
 		}
@@ -150,8 +162,6 @@ public class PyTorchPixelClassifier implements PixelClassifier {
 	        //imgResult = new BufferedImage(getColorModel(), prediction.getRaster(), false, null);
 
 	    }
-
-
 
 		return imgResult;
 	}
