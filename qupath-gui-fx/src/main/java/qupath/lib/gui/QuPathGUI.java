@@ -288,6 +288,7 @@ import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.prefs.QuPathStyleManager;
 import qupath.lib.gui.scripting.QPEx;
 import qupath.lib.gui.scripting.ScriptEditor;
+import qupath.lib.gui.tma.cells.ImageListCell;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.CommandFinderTools;
 import qupath.lib.gui.tools.GuiTools;
@@ -2562,44 +2563,37 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 
 	
 	@SuppressWarnings("unchecked")
-	public List<ImageServer<BufferedImage>> promptSerieSelector(QuPathGUI qupath, ObservableList<ImageServer<BufferedImage>> serverList) {		
-		// Series table
-		TableView<ImageServer<BufferedImage>> tableSeries = new TableView<>();
-		TableColumn<ImageServer<BufferedImage>, String> nameCol = new TableColumn<ImageServer<BufferedImage>, String>("Name");
-		nameCol.setMinWidth(250);
-		nameCol.setCellValueFactory(cellData -> {
-			return new ReadOnlyObjectWrapper<>(cellData.getValue().getMetadata().getName());
-		});
+	public List<ImageServer<BufferedImage>> promptSerieSelector(QuPathGUI qupath, ObservableList<ImageServer<BufferedImage>> serverList) {			
+		// Get thumbnails in separate thread
+		ExecutorService executor = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory("thumbnail-loader", true));
+
+		ListView<ImageServer<BufferedImage>> listSeries = new ListView<>();
+		listSeries.setPrefWidth(480);
+		listSeries.setMinHeight(100);
 		
-		TableColumn<ImageServer<BufferedImage>, ImageView> thumbnailCol = new TableColumn<ImageServer<BufferedImage>, ImageView>("Preview");
-		thumbnailCol.setMinWidth(250);
-		thumbnailCol.setCellValueFactory(cellData -> {
-			//poolMultipleThreads.submit(() -> {
-				//imageRegionStore.getThumbnail(cellData.getValue(), 0, 0, true);
-				//});
-			BufferedImage temp = null;
-			try {
-				temp = ProjectImportImagesCommand.getThumbnailRGB(cellData.getValue(), null);
-			} catch (IOException e) {
-				logger.warn("Error loading thumbnail: " + e.getLocalizedMessage(), e);
-			}
-			Image image = SwingFXUtils.toFXImage(temp, null);
-			ImageView imageView = new ImageView(image);
-			imageView.setPreserveRatio(true);
-			imageView.setFitHeight(100);
-			imageView.setFitWidth(100);
-			return new ReadOnlyObjectWrapper<>(imageView);
-		});
+		// thumbnailBank is the map for storing thumbnails
+		Map<String, BufferedImage> thumbnailBank = new HashMap<String, BufferedImage>();
+		for (ImageServer<BufferedImage> server: serverList) {
+			executor.submit(new Runnable() {
+				
+				@Override
+				public void run() {
+					try {
+						thumbnailBank.put(server.getMetadata().getName(), ProjectImportImagesCommand.getThumbnailRGB(server, null));
+						Platform.runLater( () -> listSeries.refresh());
+					} catch (IOException e) {
+						logger.warn("Error loading thumbnail: " + e.getLocalizedMessage(), e);
+					}
+				}
+			});
+		};
 		
-		thumbnailCol.setStyle( "-fx-alignment: CENTER;");
-		nameCol.setStyle( "-fx-alignment: CENTER;");
+		listSeries.setCellFactory(v -> new ImageAndNameListCell(thumbnailBank));
+		listSeries.getItems().setAll(serverList);
+
 		
 		
-		tableSeries.setItems(serverList);
-		tableSeries.getColumns().addAll(nameCol, thumbnailCol);
-		
-		
-		// Info Pane - Changes according to selected series
+		// Info table - Changes according to selected series
 		String[] attributes = new String[] {"Full Path", "Server Type", "Width", "Height", "Pixel Width", "Pixel Height", "Pixel Type", "Number of Channels", "Number of Resolutions"};
 		Integer[] indices = new Integer[9];
 		for (int index = 0; index < 9; index++) indices[index] = index;
@@ -2608,25 +2602,47 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		TableView<Integer> tableInfo = new TableView<>();
 		tableInfo.setMinHeight(200);
 		tableInfo.setMinWidth(500);
+		
+		// First column (attribute names)
 		TableColumn<Integer, String> attributeCol = new TableColumn<Integer, String>("Attribute");
-		attributeCol.setMinWidth(235);
+		attributeCol.setMinWidth(242);
+		attributeCol.setResizable(false);
 		attributeCol.setCellValueFactory(cellData -> {
 			return new ReadOnlyObjectWrapper<String>(attributes[cellData.getValue()]);
 		});
 		
+		// Second column (attribute values)
 		TableColumn<Integer, String> valueCol = new TableColumn<Integer, String>("Value");
-		valueCol.setMinWidth(250);
+		valueCol.setMinWidth(242);
+		valueCol.setResizable(false);
 		valueCol.setCellValueFactory(cellData -> {
 			if (selectedSeries != null) return getSerieQuickInfo(selectedSeries, cellData.getValue());
 			else return null;
 		});
 		
+		
+		// Adding the values on hover over the info table
+		tableInfo.setRowFactory(tableView -> {
+            final TableRow<Integer> row = new TableRow<>();
+            row.hoverProperty().addListener((observable) -> {
+                final var element = row.getItem();
+                if (row.isHover() && selectedSeries != null) {
+                	ObservableValue<String> value = getSerieQuickInfo(selectedSeries, element);
+                	Tooltip tooltip = new Tooltip(value.getValue());
+                	Tooltip.install(row, tooltip);
+                }
+            });
+            return row;
+		});
+		
+		// Set items to info table
 		tableInfo.setItems(indexList);
 		tableInfo.getColumns().addAll(attributeCol, valueCol);
 		
 
+		// Pane structure
 		BorderPane paneSelector = new BorderPane();
-		BorderPane paneSeries = new BorderPane(tableSeries);
+		BorderPane paneSeries = new BorderPane(listSeries);
 		BorderPane paneInfo = new BorderPane(tableInfo);
 		paneInfo.setMaxHeight(100);
 		paneSelector.setCenter(paneSeries);
@@ -2641,8 +2657,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		ButtonType typeImport = new ButtonType("Open", ButtonData.OK_DONE);
 		dialog.getDialogPane().getButtonTypes().addAll(typeImport, ButtonType.CANCEL);
 		dialog.getDialogPane().setContent(pane);
-
-		tableSeries.getSelectionModel().selectedItemProperty().addListener((obs, previousSelectedRow, selectedRow) -> {
+		
+		listSeries.getSelectionModel().selectedItemProperty().addListener((obs, previousSelectedRow, selectedRow) -> {
 		    if (selectedRow != null) {
 		    	selectedSeries = selectedRow;
 		    	indexList.removeAll(indexList);
@@ -2650,23 +2666,38 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		    }
 		});
 		
-		tableSeries.setRowFactory( tv -> {
-		    TableRow<ImageServer<BufferedImage>> row = new TableRow<>();
-		    row.setOnMouseClicked(event -> {
-		        if (event.getClickCount() == 2 && (!row.isEmpty()) ) {
-		        	selectedSeries = row.getItem();
+		listSeries.setOnMouseClicked(new EventHandler<MouseEvent>() {
+
+		    @Override
+		    public void handle(MouseEvent click) {
+		    	ImageServer<BufferedImage> selectedItem = listSeries.getSelectionModel().getSelectedItem();
+
+		        if (click.getClickCount() == 2 && selectedItem != null) {
 		        	Button okButton = (Button) dialog.getDialogPane().lookupButton(typeImport);
 		        	okButton.fire();
 		        }
-		    });
-		    return row;
+		    }
 		});
 		
 		Optional<ButtonType> result = dialog.showAndWait();
+		
+		try {
+			executor.shutdownNow();
+		} catch (Exception e) {
+			e.printStackTrace();
+		} finally {
+			selectedSeries = null;
+			try {
+				for (ImageServer<BufferedImage> server: serverList) server.close();
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}		
+		
 		if (!result.isPresent() || result.get() != typeImport || result.get() == ButtonType.CANCEL)
 			return Collections.emptyList();
 		
-		return tableSeries.getSelectionModel().getSelectedItems();
+		return listSeries.getSelectionModel().getSelectedItems();
 	}
 
 	public ImageData<BufferedImage> createNewImageData(final ImageServer<BufferedImage> server) {

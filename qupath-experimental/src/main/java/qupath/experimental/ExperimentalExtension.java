@@ -53,12 +53,8 @@ public class ExperimentalExtension implements QuPathExtension {
                 QuPathGUI.createCommandAction(new PixelClassifierCommand(), "Train pixel classifier (experimental)", null, new KeyCodeCombination(KeyCode.P, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN)),
                 QuPathGUI.createCommandAction(new PixelClassifierLoadCommand(qupath), "Load pixel classifier (experimental)"),
                 QuPathGUI.createCommandAction(new SimpleThresholdCommand(qupath), "Create simple thresholder (experimental)"),
-<<<<<<< HEAD
+                QuPathGUI.createCommandAction(new ObjectClassifierCommand(qupath), "Train object classifier (experimental)"),
                 QuPathGUI.createCommandAction(new PyTorchClassifierCommand(qupath), "Load PyTorch classifier (experimental)")
-//                QuPathGUI.createCommandAction(new OpenCvClassifierCommand2(qupath), "Object classifier (experimental)")
-=======
-                QuPathGUI.createCommandAction(new ObjectClassifierCommand(qupath), "Train object classifier (experimental)")
->>>>>>> 6b8794b805f8035ce550a3949bf7e4656de0f2f0
         );
     	MenuTools.addMenuItems(
                 qupath.getMenu("Analyze", true),
