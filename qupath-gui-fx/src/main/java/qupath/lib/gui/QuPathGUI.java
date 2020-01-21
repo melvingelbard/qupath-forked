@@ -2492,7 +2492,11 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 
 			List<ImageServer<BufferedImage>> serverList = ImageServerProvider.getServerList(pathNew, BufferedImage.class);
 			
-			if (serverList.size() == 0) return false;	// Should throw Exception?
+			if (serverList.size() == 0) {
+				String message = "Unable to build ImageServer for " + pathNew;
+				Dialogs.showErrorMessage("Unable to build server", message);
+				return false;
+			}
 			else if (serverList.size() == 1) {
 				serverNew = serverList.get(0);
 			} else {
