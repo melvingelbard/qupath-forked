@@ -14,7 +14,6 @@ import qupath.lib.gui.ml.commands.CreateRegionAnnotationsCommand;
 import qupath.lib.gui.ml.commands.ExportTrainingRegionsCommand;
 import qupath.lib.gui.ml.commands.ObjectClassifierCommand;
 import qupath.lib.gui.ml.commands.PixelClassifierLoadCommand;
-import qupath.lib.gui.ml.commands.PyTorchClassifierCommand;
 import qupath.lib.gui.ml.commands.PixelClassifierCommand;
 import qupath.lib.gui.ml.commands.SimpleThresholdCommand;
 import qupath.lib.gui.ml.commands.SplitProjectTrainingCommand;
@@ -53,8 +52,7 @@ public class ExperimentalExtension implements QuPathExtension {
                 QuPathGUI.createCommandAction(new PixelClassifierCommand(), "Train pixel classifier (experimental)", null, new KeyCodeCombination(KeyCode.P, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN)),
                 QuPathGUI.createCommandAction(new PixelClassifierLoadCommand(qupath), "Load pixel classifier (experimental)"),
                 QuPathGUI.createCommandAction(new SimpleThresholdCommand(qupath), "Create simple thresholder (experimental)"),
-                QuPathGUI.createCommandAction(new ObjectClassifierCommand(qupath), "Train object classifier (experimental)"),
-                QuPathGUI.createCommandAction(new PyTorchClassifierCommand(qupath), "Load PyTorch classifier (experimental)")
+                QuPathGUI.createCommandAction(new ObjectClassifierCommand(qupath), "Train detection classifier (experimental)")
         );
     	MenuTools.addMenuItems(
                 qupath.getMenu("Analyze", true),
