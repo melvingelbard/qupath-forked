@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -15,6 +16,7 @@ import org.controlsfx.control.action.ActionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -36,7 +38,10 @@ import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.TextField;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.Tooltip;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.DataFormat;
 import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
@@ -120,13 +125,32 @@ public class PathClassPane {
 		
 		listClasses.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
 		
+		var copyCombo = new KeyCodeCombination(KeyCode.C, KeyCodeCombination.SHORTCUT_DOWN);
+		var pasteCombo = new KeyCodeCombination(KeyCode.V, KeyCodeCombination.SHORTCUT_DOWN);
+		
 		listClasses.addEventFilter(KeyEvent.KEY_RELEASED, e -> {
+			if (e.isConsumed())
+				return;
 			if (e.getCode() == KeyCode.BACK_SPACE) {
 				promptToRemoveSelectedClasses();
 				e.consume();
 				return;
 			} else if (e.getCode() == KeyCode.ENTER) {
 				promptToEditSelectedClass();
+				e.consume();
+				return;
+			} else if (copyCombo.match(e)) {
+				// Copy the list if needed
+				String s = listClasses.getSelectionModel().getSelectedItems()
+						.stream().map(p -> p.toString()).collect(Collectors.joining(System.lineSeparator()));
+				if (!s.isBlank()) {
+					Clipboard.getSystemClipboard().setContent(
+							Map.of(DataFormat.PLAIN_TEXT, s));
+				}
+				e.consume();
+				return;
+			} else if (pasteCombo.match(e)) {
+				logger.debug("Paste not implemented for classification list!");
 				e.consume();
 				return;
 			}
@@ -286,8 +310,9 @@ public class PathClassPane {
 			miPopulateFromImageBase.setDisable(hierarchy == null);
 			miPopulateFromChannels.setDisable(qupath.getImageData() == null);
 			var selected = getSelectedPathClasses();
-			boolean hasClasses = selected.size() > 1 || 
-					(selected.size() == 1 && selected.get(0) != null && selected.get(0) != PathClassFactory.getPathClassUnclassified());
+			boolean hasClasses = !selected.isEmpty();
+//			boolean hasClasses = selected.size() > 1 || 
+//					(selected.size() == 1 && selected.get(0) != null && selected.get(0) != PathClassFactory.getPathClassUnclassified());
 			miSetVisible.setDisable(!hasClasses);
 			miSetHidden.setDisable(!hasClasses);
 //			miRemoveClass.setDisable(!hasClasses);
@@ -312,12 +337,23 @@ public class PathClassPane {
 		return menu;
 	}
 	
+	/**
+	 * Update pane to reflect the current status.
+	 */
+	public void refresh() {
+		if (!Platform.isFxApplicationThread()) {
+			Platform.runLater(() -> refresh());
+			return;
+		}
+		listClasses.refresh();
+	}
+	
 	
 	void setSelectedClassesVisibility(boolean visible) {
 		OverlayOptions overlayOptions = qupath.getViewer().getOverlayOptions();
 		for (var pathClass : getSelectedPathClasses()) {
-			if (pathClass == null || pathClass == PathClassFactory.getPathClassUnclassified())
-				continue;
+//			if (pathClass == null || pathClass == PathClassFactory.getPathClassUnclassified())
+//				continue;
 			overlayOptions.setPathClassHidden(pathClass, !visible);
 		}
 		listClasses.refresh();
@@ -492,11 +528,12 @@ public class PathClassPane {
 		if (input == null || input.trim().isEmpty())
 			return false;
 		PathClass pathClass = PathClassFactory.getPathClass(input);
-		if (listClasses.getItems().contains(pathClass)) {
+		var list = qupath.getAvailablePathClasses();
+		if (list.contains(pathClass)) {
 			Dialogs.showErrorMessage("Add class", "Class '" + input + "' already exists!");
 			return false;
 		}
-		listClasses.getItems().add(pathClass);
+		list.add(pathClass);
 		return true;
 	}
 	
@@ -627,7 +664,7 @@ public class PathClassPane {
 		else
 			message = "Remove " + pathClasses.size() + " classes from list?";
 		if (Dialogs.showConfirmDialog("Remove classes", message))
-			return listClasses.getItems().removeAll(pathClasses);
+			return qupath.getAvailablePathClasses().removeAll(pathClasses);
 		return false;
 	}
 	
@@ -712,7 +749,7 @@ public class PathClassPane {
 					setText(value.toString() + " (" + n + ")");
 				setGraphic(new Rectangle(size, size, ColorToolsFX.getPathClassColor(value)));
 			}
-			if (value != null && viewer != null && viewer.getOverlayOptions().isPathClassHidden(value)) {
+			if (!empty && viewer != null && viewer.getOverlayOptions().isPathClassHidden(value)) {
 				setStyle("-fx-font-family:arial; -fx-font-style:italic;");		
 				setText(getText() + " (hidden)");
 			} else

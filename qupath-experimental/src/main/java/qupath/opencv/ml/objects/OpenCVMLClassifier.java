@@ -1,12 +1,10 @@
 package qupath.opencv.ml.objects;
 
-import java.awt.image.BufferedImage;
 import java.nio.FloatBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
 import org.bytedeco.javacpp.indexer.FloatIndexer;
 import org.bytedeco.javacpp.indexer.IntIndexer;
 import org.bytedeco.opencv.global.opencv_core;
@@ -16,6 +14,8 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
 
+import qupath.lib.classifiers.object.AbstractObjectClassifier;
+import qupath.lib.classifiers.object.ObjectClassifier;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
@@ -27,19 +27,14 @@ import qupath.lib.objects.classes.Reclassifier;
 import qupath.opencv.ml.objects.features.FeatureExtractor;
 import qupath.opencv.ml.OpenCVClassifiers.OpenCVStatModel;
 
-public class OpenCVMLClassifier {
-
-	final private static Logger logger = LoggerFactory.getLogger(OpenCVMLClassifier.class);
+public class OpenCVMLClassifier<T> extends AbstractObjectClassifier<T> {
 	
-	/**
-	 * Choose which objects are supportsed (often detections)
-	 */
-	private PathObjectFilter filter;
+	final private static Logger logger = LoggerFactory.getLogger(OpenCVMLClassifier.class);
 	
 	/**
 	 * Extract features from objects
 	 */
-	private FeatureExtractor featureExtractor;
+	private FeatureExtractor<T> featureExtractor;
 
 	/**
 	 * Object classifier
@@ -50,11 +45,6 @@ public class OpenCVMLClassifier {
 	 * Supported classifications - this is an ordered list, required to interpret labels
 	 */
 	private List<PathClass> pathClasses;
-
-	/**
-	 * Timestamp representing when the classifier was created/trained
-	 */
-	private long timestamp = System.currentTimeMillis();
 
 	
 //	public static List<OpenCVStatModel> createDefaultStatModels() {
@@ -72,36 +62,37 @@ public class OpenCVMLClassifier {
 //	}
 	
 
-	OpenCVMLClassifier() {}
-
 	OpenCVMLClassifier(OpenCVStatModel classifier, PathObjectFilter filter,
-			FeatureExtractor extractor, List<PathClass> pathClasses) {
+			FeatureExtractor<T> extractor, List<PathClass> pathClasses) {
+		super(filter);
 		this.classifier = classifier;
-		this.filter = filter;
 		this.featureExtractor = extractor;
 		this.pathClasses = new ArrayList<>(pathClasses);
-		this.timestamp = System.currentTimeMillis();
 	}
 	
-	public static OpenCVMLClassifier create(OpenCVStatModel model, PathObjectFilter filter
-			, FeatureExtractor extractor, List<PathClass> pathClasses) {
+	public static <T> ObjectClassifier<T> create(OpenCVStatModel model, PathObjectFilter filter,
+			FeatureExtractor<T> extractor, List<PathClass> pathClasses) {
 		return new OpenCVMLClassifier(model, filter, extractor, pathClasses);
 	}
 
+	@Override
 	public Collection<PathClass> getPathClasses() {
 		return pathClasses == null ? Collections.emptyList() : Collections.unmodifiableList(pathClasses);
 	}
 	
-		
-	public int classifyObjects(ImageData<BufferedImage> imageData) {
-		var pathObjects = imageData.getHierarchy().getFlattenedObjectList(null);
-		if (filter != null)
-			pathObjects = pathObjects.stream().filter(filter).collect(Collectors.toList());
-		return classifyObjects(imageData, pathObjects);
+	@Override
+	public int classifyObjects(ImageData<T> imageData, Collection<? extends PathObject> pathObjects, boolean resetExistingClass) {
+		return classifyObjects(featureExtractor, classifier, pathClasses, imageData, pathObjects, resetExistingClass);
 	}
-	
 
-	public int classifyObjects(ImageData<BufferedImage> imageData, Collection<PathObject> pathObjects) {
+	
+	static <T> int classifyObjects(
+			FeatureExtractor<T> featureExtractor,
+			OpenCVStatModel classifier,
+			List<PathClass> pathClasses,
+			ImageData<T> imageData,
+			Collection<? extends PathObject> pathObjects,
+			boolean resetExistingClass) {
 
 		if (featureExtractor == null) {
 			logger.warn("No feature extractor! Cannot classify {} objects", pathObjects.size());
@@ -171,8 +162,12 @@ public class OpenCVMLClassifier {
 							}
 						}
 						var pathClass = PathClassFactory.getPathClass(classifications);
-						if (PathClassTools.isIgnoredClass(pathClass))
+						if (PathClassTools.isIgnoredClass(pathClass)) {
 							pathClass = null;
+						}
+						if (!resetExistingClass) {
+							pathClass = PathClassTools.mergeClasses(pathObject.getPathClass(), pathClass);
+						}
 						reclassifiers.add(new Reclassifier(pathObject, pathClass, false));
 						row++;
 					}
@@ -182,12 +177,16 @@ public class OpenCVMLClassifier {
 					for (var pathObject : tempObjectList) {
 						int prediction = idxResults.get(row);
 						var pathClass = pathClasses.get(prediction);
-						if (PathClassTools.isIgnoredClass(pathClass))
+						double probability = idxProbabilities == null ? Double.NaN : idxProbabilities.get(row, prediction);
+						if (PathClassTools.isIgnoredClass(pathClass)) {
 							pathClass = null;
-						if (idxProbabilities == null)
-							reclassifiers.add(new Reclassifier(pathObject, pathClass, true));
-						else
-							reclassifiers.add(new Reclassifier(pathObject, pathClass, true, idxProbabilities.get(row, prediction)));							
+							probability = Double.NaN;
+						} 
+						if (!resetExistingClass) {
+							pathClass = PathClassTools.mergeClasses(pathObject.getPathClass(), pathClass);
+							probability = Double.NaN;
+						}
+						reclassifiers.add(new Reclassifier(pathObject, pathClass, true, probability));							
 						row++;
 					}
 				}
@@ -209,6 +208,11 @@ public class OpenCVMLClassifier {
 		reclassifiers.stream().forEach(p -> p.apply());
 
 		return counter;
+	}
+	
+	@Override
+	public String toString() {
+		return String.format("OpenCV object classifier (%s, %d classes)", classifier.getName(), getPathClasses().size());
 	}
 
 
