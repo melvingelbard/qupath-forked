@@ -28,19 +28,29 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.reflect.Constructor;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Set;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.application.Platform;
+import javafx.embed.swing.SwingFXUtils;
+import javafx.scene.Node;
+import javafx.scene.Scene;
+import javafx.scene.image.Image;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
+import javafx.stage.Stage;
+import javafx.stage.Window;
+import qupath.lib.display.ChannelDisplayInfo;
+import qupath.lib.display.ChannelDisplayInfo.DirectServerChannelInfo;
+import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.SummaryMeasurementTableCommand;
 import qupath.lib.gui.dialogs.Dialogs;
@@ -49,7 +59,10 @@ import qupath.lib.gui.models.ObservableMeasurementTableData;
 import qupath.lib.gui.plugins.PluginRunnerFX;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tma.TMADataIO;
+import qupath.lib.gui.tools.Charts;
 import qupath.lib.gui.tools.GuiTools;
+import qupath.lib.gui.tools.MenuTools;
+import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ServerTools;
@@ -57,23 +70,16 @@ import qupath.lib.images.writers.ImageWriterTools;
 import qupath.lib.io.PathIO;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
-import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.PathRootObject;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.TMACoreObject;
-import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.CommandLinePluginRunner;
 import qupath.lib.plugins.PathPlugin;
 import qupath.lib.plugins.PluginRunner;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
 import qupath.lib.projects.Projects;
-import qupath.lib.regions.ImagePlane;
-import qupath.lib.roi.RoiTools;
-import qupath.lib.roi.ROIs;
-import qupath.lib.roi.interfaces.ROI;
 import qupath.lib.scripting.QP;
 
 /**
@@ -91,8 +97,16 @@ public class QPEx extends QP {
 	
 	
 	private final static List<Class<?>> CORE_CLASSES = Collections.unmodifiableList(Arrays.asList(
+			// QuPath classes
+			QuPathGUI.class,
 			Dialogs.class,
-			GuiTools.class
+			GuiTools.class,
+			Charts.class,
+			MenuTools.class,
+			PaneTools.class,
+			
+			// JavaFX classes
+			Platform.class
 			));
 	
 	/**
@@ -365,6 +379,104 @@ public class QPEx extends QP {
 		ImageWriterTools.writeImage(renderedServer, path);
 	}
 	
+	/**
+	 * Write a JavaFX image to the specified path.
+	 * @param image the image to write
+	 * @param path the path to write the image
+	 * @throws IOException
+	 * @see #writeRenderedImage(ImageData, String)
+	 */
+	public static void writeImage(Image image, String path) throws IOException {
+		writeImage(SwingFXUtils.fromFXImage(image, null), path);
+	}
+	
+
+	/**
+	 * Set the minimum and maximum display range for the current {@link ImageData} for a channel identified by number.
+	 * @param channel channel number (0-based index)
+	 * @param minDisplay
+	 * @param maxDisplay
+	 */
+	public static void setChannelDisplayRange(int channel, double minDisplay, double maxDisplay) {
+		setChannelDisplayRange(getCurrentImageData(), channel, minDisplay, maxDisplay);
+	}
+
+	/**
+	 * Set the minimum and maximum display range for the specified {@link ImageData} for a channel identified by number.
+	 * @param imageData
+	 * @param channel channel number (0-based index)
+	 * @param minDisplay
+	 * @param maxDisplay
+	 */
+	public static void setChannelDisplayRange(ImageData<?> imageData, int channel, double minDisplay, double maxDisplay) {
+		// Try to get an existing display if the image is currently open
+		var viewer = getQuPath().getViewers().stream()
+				.filter(v -> v.getImageData() == imageData)
+				.findFirst()
+				.orElse(null);
+		ImageDisplay display = viewer == null ? new ImageDisplay((ImageData<BufferedImage>)imageData) : viewer.getImageDisplay();
+		var available = display.availableChannels();
+		if (channel < 0 || channel >= available.size()) {
+			logger.warn("Channel {} is out of range ({}-{}) - cannot set display range", channel, 0, available.size()-1);
+			return;
+		}
+		var info = display.availableChannels().get(channel);
+		display.setMinMaxDisplay(info, (float)minDisplay, (float)maxDisplay);
+		// Update the viewer is necessary
+		if (viewer != null)
+			viewer.repaintEntireImage();
+	}
+	
+	/**
+	 * Set the minimum and maximum display range for the current {@link ImageData} for a channel identified by name.
+	 * @param channelName
+	 * @param minDisplay
+	 * @param maxDisplay
+	 */
+	public static void setChannelDisplayRange(String channelName, double minDisplay, double maxDisplay) {
+		setChannelDisplayRange(getCurrentImageData(), channelName, minDisplay, maxDisplay);
+	}
+
+	/**
+	 * Set the minimum and maximum display range for the specified {@link ImageData} for a channel identified by name.
+	 * @param imageData
+	 * @param channelName
+	 * @param minDisplay
+	 * @param maxDisplay
+	 */
+	public static void setChannelDisplayRange(ImageData<?> imageData, String channelName, double minDisplay, double maxDisplay) {
+		// Try to get an existing display if the image is currently open
+		var viewer = getQuPath().getViewers().stream()
+				.filter(v -> v.getImageData() == imageData)
+				.findFirst()
+				.orElse(null);
+		ImageDisplay display = viewer == null ? new ImageDisplay((ImageData<BufferedImage>)imageData) : viewer.getImageDisplay();
+		var available = display.availableChannels();
+		ChannelDisplayInfo info = null;
+		var serverChannels = imageData.getServer().getMetadata().getChannels();
+		for (var c : available) {
+			if (channelName.equals(c.getName())) {
+				info = c;
+				break;
+			}
+			// We also need to check the channel names, since the info might have adjusted them (e.g. by adding (C1) at the end)
+			if (c instanceof DirectServerChannelInfo) {
+				int channelNumber = ((DirectServerChannelInfo)c).getChannel();
+				if (channelNumber >= 0 && channelNumber < serverChannels.size() && channelName.equals(serverChannels.get(channelNumber).getName())) {
+					info = c;
+					break;
+				}
+			}
+		}
+		if (info == null) {
+			logger.warn("No channel found with name {} - cannot set display range", channelName);
+			return;
+		}
+		display.setMinMaxDisplay(info, (float)minDisplay, (float)maxDisplay);
+		// Update the viewer is necessary
+		if (viewer != null)
+			viewer.repaintEntireImage();
+	}
 	
 	
 	public static void saveAnnotationMeasurements(final String path, final String... includeColumns) {
@@ -426,5 +538,78 @@ public class QPEx extends QP {
 			logger.error("Error writing file to " + fileOutput, e);
 		}
 	}
+	
+	/**
+	 * Access a window currently open within QuPath by its title.
+	 * @param title
+	 * @return
+	 */
+	public static Window getWindow(String title) {
+		for (var window : Window.getWindows()) {
+			if (window instanceof Stage) {
+				var stage = (Stage)window;
+				if (title.equals(stage.getTitle()))
+					return stage;
+			}
+		}
+		return null;
+	}
+	
+	/**
+	 * Try to copy an object to the clipboard.
+	 * This will attempt to perform a smart conversion; for example, if a window is provided a snapshot will be taken 
+	 * and copied as an image.
+	 * @param o the object to copy
+	 */
+	public static void copyToClipboard(Object o) {
+		if (!Platform.isFxApplicationThread()) {
+			Object o2 = o;
+			Platform.runLater(() -> copyToClipboard(o2));
+			return;
+		}
+		
+		ClipboardContent content = new ClipboardContent();
+		
+		// Handle things that are (or could become) images
+		if (o instanceof BufferedImage)
+			o = SwingFXUtils.toFXImage((BufferedImage)o, null);
+		if (o instanceof QuPathGUI)
+			o = ((QuPathGUI)o).getStage();
+		if (o instanceof QuPathViewer)
+			o = ((QuPathViewer)o).getView();
+		if (o instanceof Window)
+			o = ((Window)o).getScene();
+		if (o instanceof Scene)
+			o = ((Scene)o).snapshot(null);
+		if (o instanceof Node)
+			o = ((Node)o).snapshot(null, null);
+		if (o instanceof Image)
+			content.putImage((Image)o);
+		
+		// Handle files
+		List<File> files = null;
+		if (o instanceof File)
+			files = Arrays.asList((File)o);
+		else if (o instanceof File[])
+			files = Arrays.asList((File[])o);
+		else if (o instanceof Collection) {
+			files = new ArrayList<>();
+			for (var something : (Collection)o) {
+				if (something instanceof File)
+					files.add((File)something);
+			}
+		}
+		if (files != null && !files.isEmpty())
+			content.putFiles(files);
+		
+		// Handle URLs
+		if (o instanceof URL)
+			content.putUrl(((URL)o).toString());
+		
+		// Always put a String representation
+		content.putString(o.toString());
+		Clipboard.getSystemClipboard().setContent(content);
+	}
+	
 	
 }

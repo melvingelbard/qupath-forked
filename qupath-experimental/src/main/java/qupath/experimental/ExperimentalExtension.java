@@ -5,22 +5,22 @@ import org.bytedeco.openblas.global.openblas;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
+import qupath.experimental.commands.CreateRegionAnnotationsCommand;
+import qupath.experimental.commands.ExportTrainingRegionsCommand;
+import qupath.experimental.commands.ObjectClassifierCommand;
+import qupath.experimental.commands.ObjectClassifierLoadCommand;
+import qupath.experimental.commands.PixelClassifierCommand;
+import qupath.experimental.commands.PixelClassifierLoadCommand;
+import qupath.experimental.commands.SimpleThresholdCommand;
+import qupath.experimental.commands.SplitProjectTrainingCommand;
+import qupath.experimental.commands.SvgExportCommand;
 import qupath.lib.classifiers.object.ObjectClassifiers;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.align.InteractiveImageAlignmentCommand;
 import qupath.lib.gui.extensions.QuPathExtension;
-import qupath.opencv.ml.pixel.features.ColorTransforms;
-import qupath.lib.gui.ml.commands.CreateRegionAnnotationsCommand;
-import qupath.lib.gui.ml.commands.ExportTrainingRegionsCommand;
-import qupath.lib.gui.ml.commands.ObjectClassifierCommand;
-import qupath.lib.gui.ml.commands.ObjectClassifierLoadCommand;
-import qupath.lib.gui.ml.commands.PixelClassifierLoadCommand;
-import qupath.lib.gui.ml.commands.PyTorchClassifierCommand;
-import qupath.lib.gui.ml.commands.PixelClassifierCommand;
-import qupath.lib.gui.ml.commands.SimpleThresholdCommand;
-import qupath.lib.gui.ml.commands.SplitProjectTrainingCommand;
 import qupath.lib.gui.tools.MenuTools;
+import qupath.lib.images.servers.ColorTransforms;
 import qupath.lib.io.GsonTools;
 import qupath.opencv.ml.objects.OpenCVMLClassifier;
 import qupath.opencv.ml.objects.features.FeatureExtractors;
@@ -31,10 +31,10 @@ import qupath.opencv.ml.pixel.features.FeatureCalculators;
  * Extension to make more experimental commands present in the GUI.
  */
 public class ExperimentalExtension implements QuPathExtension {
-	
+
 	static {
 		ObjectClassifiers.ObjectClassifierTypeAdapterFactory.registerSubtype(OpenCVMLClassifier.class);
-		
+
 		GsonTools.getDefaultBuilder()
 			.registerTypeAdapterFactory(PixelClassifiers.getTypeAdapterFactory())
 			.registerTypeAdapterFactory(FeatureCalculators.getTypeAdapterFactory())
@@ -42,10 +42,10 @@ public class ExperimentalExtension implements QuPathExtension {
 			.registerTypeAdapterFactory(ObjectClassifiers.getTypeAdapterFactory())
 			.registerTypeAdapter(ColorTransforms.ColorTransform.class, new ColorTransforms.ColorTransformTypeAdapter());
 	}
-	
+
     @Override
     public void installExtension(QuPathGUI qupath) {
-    	
+
     	// TODO: Check if openblas multithreading continues to have trouble with Mac/Linux
     	if (!GeneralTools.isWindows())
     		openblas.blas_set_num_threads(1);
@@ -53,30 +53,36 @@ public class ExperimentalExtension implements QuPathExtension {
 //		PixelClassifiers.PixelClassifierTypeAdapterFactory.registerSubtype(OpenCVPixelClassifier.class);
 //		PixelClassifiers.PixelClassifierTypeAdapterFactory.registerSubtype(OpenCVPixelClassifierDNN.class);
     	FeatureCalculators.initialize();
-    	
+
+    	MenuTools.addMenuItems(
+                qupath.getMenu("File>Export images...", true),
+                QuPathGUI.createCommandAction(new SvgExportCommand(qupath, SvgExportCommand.SvgExportType.SELECTED_REGION),
+                		"Rendered SVG")
+        );
+    	MenuTools.addMenuItems(
+                qupath.getMenu("File>Export snapshot...", true),
+                QuPathGUI.createCommandAction(new SvgExportCommand(qupath, SvgExportCommand.SvgExportType.VIEWER_SNAPSHOT),
+                		"Current viewer content (SVG)")
+        );
+
     	MenuTools.addMenuItems(
                 qupath.getMenu("Classify>Pixel classification", true),
                 QuPathGUI.createCommandAction(new PixelClassifierCommand(), "Train pixel classifier (experimental)", null, new KeyCodeCombination(KeyCode.P, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN)),
                 QuPathGUI.createCommandAction(new PixelClassifierLoadCommand(qupath), "Load pixel classifier (experimental)"),
-
-                QuPathGUI.createCommandAction(new SimpleThresholdCommand(qupath), "Create simple thresholder (experimental)"),
-                QuPathGUI.createCommandAction(new ObjectClassifierCommand(qupath), "Train detection classifier (experimental)"),
-                QuPathGUI.createCommandAction(new PyTorchClassifierCommand(qupath), "Load PyTorch classifier (experimental)"),
                 QuPathGUI.createCommandAction(new SimpleThresholdCommand(qupath), "Create simple thresholder (experimental)")
-
         );
 
     	MenuTools.addMenuItems(
                 qupath.getMenu("Classify>Object classification", true),
-                QuPathGUI.createCommandAction(new ObjectClassifierCommand(qupath), "Train detection classifier (experimental)"),
+                QuPathGUI.createCommandAction(new ObjectClassifierCommand(qupath), "Train detection classifier (experimental)", null, new KeyCodeCombination(KeyCode.D, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN)),
                 QuPathGUI.createCommandAction(new ObjectClassifierLoadCommand(qupath), "Load object classifier (experimental)")
                 );
-        
+
         MenuTools.addMenuItems(
                 qupath.getMenu("Analyze", true),
                 QuPathGUI.createCommandAction(new InteractiveImageAlignmentCommand(qupath), "Interactive image alignment (experimental)")
         );
-        
+
     	MenuTools.addMenuItems(
 				qupath.getMenu("Extensions>AI", true),
 				QuPathGUI.createCommandAction(new SplitProjectTrainingCommand(qupath), "Split project train/validation/test"),

@@ -53,6 +53,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
@@ -886,7 +887,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			overlayOptionsManager.attachListener(overlayOptions.fillDetectionsProperty(), repainterOverlay);
 			overlayOptionsManager.attachListener(overlayOptions.hiddenClassesProperty(), repainterOverlay);
 			overlayOptionsManager.attachListener(overlayOptions.measurementMapperProperty(), repainterOverlay);
-			overlayOptionsManager.attachListener(overlayOptions.cellDisplayModeProperty(), repainterOverlay);
+			overlayOptionsManager.attachListener(overlayOptions.detectionDisplayModeProperty(), repainterOverlay);
 			overlayOptionsManager.attachListener(overlayOptions.showConnectionsProperty(), repainterOverlay);
 
 			overlayOptionsManager.attachListener(overlayOptions.showAnnotationsProperty(), repainter);
@@ -1458,13 +1459,18 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			return;
 		
 		imageDataChanging.set(true);
-
+		
 		// Remove listeners for previous hierarchy
 		ImageData<BufferedImage> imageDataOld = this.imageDataProperty.get();
 		if (imageDataOld != null) {
 			imageDataOld.getHierarchy().removePathObjectListener(this);
 			imageDataOld.getHierarchy().getSelectionModel().removePathObjectSelectionListener(this);
 		}
+		
+		// Determine if the server has remained the same, so we can avoid shifting the viewer
+		boolean sameServer = false;
+		if (imageDataOld != null && imageDataNew != null && imageDataOld.getServerPath().equals(imageDataNew.getServerPath()))
+			sameServer = true;
 
 		this.imageDataProperty.set(imageDataNew);
 		ImageServer<BufferedImage> server = imageDataNew == null ? null : imageDataNew.getServer();
@@ -1479,8 +1485,10 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 		initializeForServer(server);
 		
-		setDownsampleFactorImpl(getZoomToFitDownsampleFactor(), -1, -1);
-		centerImage();
+		if (!sameServer) {
+			setDownsampleFactorImpl(getZoomToFitDownsampleFactor(), -1, -1);
+			centerImage();
+		}
 
 		fireImageDataChanged(imageDataOld, imageDataNew);
 
@@ -2385,11 +2393,40 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	}
 
 	/**
+	 * Get a string representing the object classification x &amp; y location in the viewer component,
+	 * or an empty String if no object is found.
+	 * 
+	 * @param x x-coordinate in the component space (not image space)
+	 * @param y y-coordinate in the component space (not image space)
+	 * @return a String to display representing the object classification
+	 */
+	public String getObjectClassificationString(double x, double y) {
+		var hierarchy = getHierarchy();
+		if (hierarchy == null)
+			return "";
+		var p2 = componentPointToImagePoint(x, y, null, false);
+		var pathObjects = PathObjectTools.getObjectsForLocation(hierarchy,
+				p2.getX(), p2.getY(),
+				getZPosition(),
+				getTPosition(),
+				0);
+		if (!pathObjects.isEmpty()) {
+			return pathObjects.stream()
+					.filter(pathObject -> pathObject.isDetection())
+					.map(pathObject -> {
+				var pathClass = pathObject.getPathClass();
+				return pathClass == null ? "Unclassified" : pathClass.toString();
+			}).collect(Collectors.joining(", "));
+		}
+		return "";
+	}
+	
+	/**
 	 * Get a string representing the image coordinates for a particular x &amp; y location in the viewer component.
 	 * 
-	 * @param x
-	 * @param y
-	 * @return
+	 * @param x x-coordinate in the component space (not image space)
+	 * @param y y-coordinate in the component space (not image space)
+	 * @return a String to display representing the cursor location
 	 */
 	public String getLocationString(double x, double y, boolean useCalibratedUnits) {
 		ImageServer<BufferedImage> server = getServer();
@@ -2504,10 +2541,16 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	 * @param useCalibratedUnits If true, microns will be used rather than pixels (if known).
 	 * @return
 	 */
-	public String getLocationString(boolean useCalibratedUnits) {
-		if (componentContains(mouseX, mouseY))
-			return getLocationString(mouseX, mouseY, useCalibratedUnits);
-		else
+	protected String getFullLocationString(boolean useCalibratedUnits) {
+		if (componentContains(mouseX, mouseY)) {
+			String classString = getObjectClassificationString(mouseX, mouseY).trim();
+			String locationString = getLocationString(mouseX, mouseY, useCalibratedUnits);
+			if (locationString == null || locationString.isBlank())
+				return "";
+			if (classString != null && !classString.isBlank())
+				classString = classString + "\n";
+			return classString + locationString;
+		} else
 			return "";
 	}
 

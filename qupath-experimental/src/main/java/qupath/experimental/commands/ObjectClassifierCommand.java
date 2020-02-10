@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.gui.ml.commands;
+package qupath.experimental.commands;
 
 import java.awt.image.BufferedImage;
 import java.nio.FloatBuffer;
@@ -54,6 +54,7 @@ import org.bytedeco.opencv.opencv_ml.RTrees;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
@@ -95,6 +96,8 @@ import qupath.lib.classifiers.PathClassifierTools;
 import qupath.lib.classifiers.object.ObjectClassifier;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.geom.Point2;
+import qupath.lib.gui.ImageDataChangeListener;
+import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
@@ -108,6 +111,8 @@ import qupath.lib.objects.PathObjectFilter;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
+import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
+import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.opencv.ml.OpenCVClassifiers;
 import qupath.opencv.ml.Preprocessing;
 import qupath.opencv.ml.OpenCVClassifiers.OpenCVStatModel;
@@ -153,34 +158,17 @@ public class ObjectClassifierCommand implements PathCommand {
 			BorderPane pane = new BorderPane();
 			var panel = new ObjectClassifierPane(qupath);
 			pane.setCenter(panel.getPane());
-//			List<PathObjectClassifier> classifiers = OpenCVMLClassifier.createDefaultClassifiers();
-//			panel = new ClassifierBuilderPanel<>(qupath, classifiers, classifiers.get(0));
-//			pane.setCenter(panel.getPane());
 			
 			ScrollPane scrollPane = new ScrollPane(pane);
 			scrollPane.setFitToWidth(true);
 			scrollPane.setFitToHeight(true);
 			dialog.setScene(new Scene(scrollPane));
+
+			panel.registerListeners(qupath);
+			dialog.setOnCloseRequest(e -> panel.deregisterListeners(qupath));
 		}
 		
-		dialog.setOnCloseRequest(e -> {
-//			// If we don't have a classifier yet, just remove completely
-//			if (panel.getSelectedFeatures().isEmpty()) {
-//				resetPanel();
-//				return;
-//			}
-//			
-//			// If we have a classifier, give option to hide
-//			DialogButton button = Dialogs.showYesNoCancelDialog("Classifier builder", "Retain classifier for later use?");
-//			if (button == DialogButton.CANCEL)
-//				e.consume();
-//			else if (button == DialogButton.NO) {
-//				resetPanel();
-//			}
-		});
-		
 		dialog.sizeToScene();
-		
 		dialog.show();
 	}
 	
@@ -201,7 +189,7 @@ public class ObjectClassifierCommand implements PathCommand {
 	
 	
 	
-	static class ObjectClassifierPane {
+	static class ObjectClassifierPane implements ImageDataChangeListener<BufferedImage>, PathObjectHierarchyListener {
 		
 		private final static Logger logger = LoggerFactory.getLogger(ObjectClassifierPane.class);
 		
@@ -287,7 +275,7 @@ public class ObjectClassifierCommand implements PathCommand {
 
 		private DoubleProperty pcaRetainedVariance = new SimpleDoubleProperty(-1.0);
 
-		private ObjectClassifier classifier;
+		private ObjectClassifier<BufferedImage> classifier;
 		private Set<PathClass> selectedClasses = new HashSet<>();
 		
 		private Set<String> selectedMeasurements = new LinkedHashSet<>();
@@ -421,7 +409,7 @@ public class ObjectClassifierCommand implements PathCommand {
 			
 			// TODO: Check pcaRetainedVariance
 			var pathClasses = new ArrayList<>(map.keySet());
-			var extractor = FeatureExtractors.createMeasurementListFeatureExtractor(measurements);
+			FeatureExtractor<BufferedImage> extractor = FeatureExtractors.createMeasurementListFeatureExtractor(measurements);
 			extractor = updateFeatureExtractorAndTrainClassifier(
 					statModel,
 					imageData,
@@ -460,11 +448,11 @@ public class ObjectClassifierCommand implements PathCommand {
 		 * @return the updated feature extractor, with any normalization/PCA reduction incorporated, 
 		 * or null if the training was unsuccessful (e.g. it was interrupted)
 		 */
-		private static FeatureExtractor updateFeatureExtractorAndTrainClassifier(
+		private static <T> FeatureExtractor<T> updateFeatureExtractorAndTrainClassifier(
 				OpenCVStatModel classifier,
-				ImageData<BufferedImage> imageData,
+				ImageData<T> imageData,
 				Map<PathClass, Set<PathObject>> map, 
-				FeatureExtractor extractor,
+				FeatureExtractor<T> extractor,
 				Normalization normalization,
 				double pcaRetainedVariance,
 				boolean doMulticlass) {
@@ -625,13 +613,12 @@ public class ObjectClassifierCommand implements PathCommand {
 		}
 		
 		private boolean saveAndApply() {
-			Dialogs.showErrorNotification("Advanced options", "Not yet fully implemented!");
 			updateClassifier(true);
 			if (classifier != null) {
 				try {
 					// TODO: REMOVE THIS CHECK
 					var json = GsonTools.getInstance(true).toJson(classifier);
-					System.err.println(json);
+//					System.err.println(json);
 					ObjectClassifier<BufferedImage> classifier2 = GsonTools.getInstance().fromJson(json, OpenCVMLClassifier.class);
 					logger.debug("Classification deserialized: {}", classifier2);
 					
@@ -952,21 +939,53 @@ public class ObjectClassifierCommand implements PathCommand {
 				var view = viewer.getView();
 				var p = view.screenToLocal(e.getScreenX(), e.getScreenY());
 				if (view.contains(p)) {
-					var p2 = viewer.componentPointToImagePoint(p.getX(), p.getY(), null, false);
-					var pathObjects = PathObjectTools.getObjectsForLocation(hierarchy,
-							p2.getX(), p2.getY(),
-							viewer.getZPosition(), viewer.getTPosition(), 0);
-					if (!pathObjects.isEmpty()) {
-						text = pathObjects.stream()
-								.filter(pathObject -> pathObject.isDetection())
-								.map(pathObject -> {
-							var pathClass = pathObject.getPathClass();
-							return pathClass == null ? "Unclassified" : pathClass.toString();
-						}).collect(Collectors.joining(", "));
-					}
+					text = viewer.getObjectClassificationString(p.getX(), p.getY());
 				}
 			}
 			cursorLocation.set(text);
+		}
+
+		
+		private void registerListeners(QuPathGUI qupath) {
+			qupath.addImageDataChangeListener(this);
+			imageDataChanged(qupath, null, qupath.getImageData());
+		}
+
+		private void deregisterListeners(QuPathGUI qupath) {
+			qupath.removeImageDataChangeListener(this);
+			imageDataChanged(qupath, qupath.getImageData(), null);
+		}
+
+		@Override
+		public void imageDataChanged(ImageDataWrapper<BufferedImage> source, ImageData<BufferedImage> imageDataOld,
+				ImageData<BufferedImage> imageDataNew) {
+			if (imageDataOld != null)
+				imageDataOld.getHierarchy().removePathObjectListener(this);
+			if (imageDataNew != null)
+				imageDataNew.getHierarchy().addPathObjectListener(this);
+			
+			invalidateClassifier();
+		}
+
+		@Override
+		public void hierarchyChanged(PathObjectHierarchyEvent event) {
+			if (!Platform.isFxApplicationThread()) {
+				Platform.runLater(() -> hierarchyChanged(event));
+				return;
+			}
+			if (event.isChanging())
+				return;
+			var filter = objectFilter.get();
+			if (event.isObjectClassificationEvent()) {
+				if (event.getChangedObjects().stream().allMatch(filter))
+					return;
+			}
+			if (event.isAddedOrRemovedEvent()) {
+				// Adding & removing - we don't mind if it's not a relevant object for the classification, or it's an unclassified annotation
+				if (event.getChangedObjects().stream().allMatch(p -> !(filter.test(p) || p.isAnnotation()) || (p.isAnnotation() || p.getPathClass() == null)))
+					return;				
+			}
+			invalidateClassifier();
 		}
 		
 	}
@@ -1142,6 +1161,5 @@ public class ObjectClassifierCommand implements PathCommand {
 		}
 		
 	}
-	
 	
 }
