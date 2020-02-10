@@ -112,11 +112,8 @@ public class PathClassPane {
 		String text2 = text.toLowerCase();
 		return (PathClass p) -> {
 			return p == null || p == PathClassFactory.getPathClassUnclassified() ||
-<<<<<<< HEAD
-					p.toString().toLowerCase().contains(text.toLowerCase());
-=======
+					p.toString().toLowerCase().contains(text.toLowerCase()) ||
 					p.toString().toLowerCase().contains(text2);
->>>>>>> 8bddd84834c4808321fa6785dc58a08792a93600
 		};
 	}
 
@@ -393,7 +390,7 @@ public class PathClassPane {
 		for (var pathClass : getSelectedPathClasses()) {
 			overlayOptions.setPathClassHidden(pathClass, !overlayOptions.isPathClassHidden(pathClass));
 		}
-		listClasses.refresh();
+		treeClasses.refresh();
 	}
 
 
