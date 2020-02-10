@@ -43,6 +43,7 @@ import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -105,6 +106,8 @@ import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerProvider;
+import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectIO;
 import qupath.lib.projects.ProjectImageEntry;
@@ -121,6 +124,8 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 	final static String THUMBNAIL_EXT = "jpg";
 
 	final private static Logger logger = LoggerFactory.getLogger(ProjectBrowser.class);
+	
+	private StringProperty filterText = new SimpleStringProperty("");
 
 	private Project<BufferedImage> project;
 
@@ -200,9 +205,28 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		titledTree.setCollapsible(false);
 		titledTree.setMaxHeight(Double.MAX_VALUE);
 		
+		
+		var tfFilter = new TextField();
+		tfFilter.setTooltip(new Tooltip("Type to filter classifications in list"));
+		filterText.bind(tfFilter.textProperty());
+		
+		/*
+		filterText.addListener((v, o, n) -> {
+			filteredList.setPredicate(createPredicate(n));
+			root.getChildren().clear();
+			root.getChildren().addAll(asTreeItemList(filteredList));
+			
+			
+		});
+		
+		*/
+		
+		var paneMelvin = PaneTools.createRowGrid(tfFilter);
+		
 		BorderPane panelTree = new BorderPane();
 		panelTree.setCenter(titledTree);
 
+		panel.setBottom(paneMelvin);
 		panel.setCenter(panelTree);
 
 		Button btnOpen = qupath.getActionButton(GUIActions.PROJECT_OPEN, false);
@@ -398,7 +422,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			}
 			
 			var response = Dialogs.showYesNoCancelDialog("Duplicate images", "Also duplicate data files?");
-			if (response == null)
+			if (response == null || response == response.CANCEL)
 				return;
 			boolean copyData = response == response.YES;
 			for (var entry : entries) {
@@ -508,6 +532,15 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 
 		return menu;
 
+	}
+	
+	Predicate<Object> createPredicate(String text) {
+		if (text == null || text.isBlank())
+			return p -> true;
+		return (Object p) -> {
+			p = (ProjectImageEntry<BufferedImage>)p;
+			return p == null || p.toString().toLowerCase().contains(text.toLowerCase());
+		};
 	}
 	
 	

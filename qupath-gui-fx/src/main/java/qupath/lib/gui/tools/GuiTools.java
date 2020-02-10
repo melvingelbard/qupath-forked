@@ -36,6 +36,7 @@ import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
+import javafx.scene.control.TreeView;
 import javafx.scene.image.Image;
 import javafx.scene.image.WritableImage;
 import javafx.scene.input.Clipboard;
@@ -635,17 +636,17 @@ public class GuiTools {
 		gc.clearRect(0, 0, w, h);
 		gc.drawImage(image, sx, sy, sw, sh);
 	}
-
+	
 	/**
-	 * Refresh a {@link ListView} in the Application thread.
+	 * Refresh a {@link TreeView} in the Application thread.
 	 * @param <T>
-	 * @param listView
+	 * @param treeView
 	 */
-	public static <T> void refreshList(final ListView<T> listView) {
+	public static <T> void refreshTree(final TreeView<T> treeView) {
 		if (Platform.isFxApplicationThread()) {
-			listView.refresh();
+			treeView.refresh();
 		} else
-			Platform.runLater(() -> refreshList(listView));
+			Platform.runLater(() -> refreshTree(treeView));
 	}
 
 	/**
