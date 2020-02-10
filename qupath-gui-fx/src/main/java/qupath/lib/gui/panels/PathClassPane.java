@@ -252,7 +252,6 @@ public class PathClassPane {
 	private void addAllFilteredClass(TreeItem<PathClass> root, List<TreeItem<PathClass>> filteredListTreeItems) {
 		for (int i = 0; i < filteredListTreeItems.size(); i++) {
 			PathClass pc = PathClassTools.uniqueNames(filteredListTreeItems.get(i).getValue());
-			logger.warn(pc.toString());
 		}
 	}
 
