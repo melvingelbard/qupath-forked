@@ -42,6 +42,7 @@ import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.io.GsonTools;
 import qupath.opencv.ml.pixel.PixelClassifiers;
 import qupath.opencv.ml.pixel.PyTorchPixelClassifier;
+import qupath.experimental.commands.PixelClassifierCommand;
 import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;

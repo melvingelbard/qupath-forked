@@ -28,11 +28,11 @@ import qupath.lib.images.writers.ImageWriterTools;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.regions.RegionRequest;
-import qupath.opencv.ml.pixel.features.ColorTransforms;
+//import qupath.opencv.ml.pixel.features.ColorTransforms;
 import qupath.opencv.ml.pixel.features.FeatureCalculator;
 import qupath.opencv.ml.pixel.features.FeatureCalculators;
 import qupath.opencv.ml.pixel.features.PixelFeature;
-import qupath.opencv.ml.pixel.features.ColorTransforms.ColorTransform;
+//import qupath.opencv.ml.pixel.features.ColorTransforms.ColorTransform;
 
 
 public class PyTorchPixelClassifier implements PixelClassifier {
@@ -71,6 +71,7 @@ public class PyTorchPixelClassifier implements PixelClassifier {
 		BufferedImage imgResult = null;
 		
 		ImageChannel[] channelsToClassify = metadata.getInputChannels();
+		/*
 		if (channelsToClassify != null && channelsToClassify.length != 0) {
 			ColorTransform[] colorTransforms = new ColorTransform[channelsToClassify.length];
 			for (int i = 0; i < metadata.getInputNumChannels(); i++) {
@@ -105,6 +106,7 @@ public class PyTorchPixelClassifier implements PixelClassifier {
 		        }
 			}
 		}
+		*/
 		
 
 		ByteArrayOutputStream stream = new ByteArrayOutputStream();
