@@ -1082,6 +1082,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 					list.add(entry);
 			}
 
+			/*
 			// Sort all the lists
 			for (List<ProjectImageEntry<?>> list : map.values()) {
 				list.sort(new Comparator<ProjectImageEntry<?>>() {
@@ -1091,6 +1092,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 					}
 				});
 			}
+			*/
 
 			// Populate the key list
 			mapKeyList.addAll(map.keySet());
