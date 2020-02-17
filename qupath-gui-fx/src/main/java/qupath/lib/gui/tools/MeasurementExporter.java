@@ -8,19 +8,22 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
+import org.controlsfx.dialog.ProgressDialog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.LinkedListMultimap;
 import com.google.common.collect.Multimap;
 
+import javafx.concurrent.Task;
+import javafx.event.ActionEvent;
+import javafx.scene.control.ButtonType;
 import qupath.lib.gui.commands.SummaryMeasurementTableCommand;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.models.ObservableMeasurementTableData;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
@@ -40,7 +43,6 @@ public class MeasurementExporter {
 	
 	private final static Logger logger = LoggerFactory.getLogger(MeasurementExporter.class);
 	
-	
 	private Project<BufferedImage> project;
 	
 	private List<String> includeOnlyColumns = new ArrayList<String>();
@@ -50,6 +52,8 @@ public class MeasurementExporter {
 	private Class<? extends PathObject> type = PathAnnotationObject.class;
 	
 	private String separator;
+	
+	private List<ProjectImageEntry<BufferedImage>> imageList;
 	
 	public MeasurementExporter(Project<BufferedImage> project) {
 		this.project = project;
@@ -88,6 +92,31 @@ public class MeasurementExporter {
 		return this;
 	}
 	
+	public MeasurementExporter imageList(List<ProjectImageEntry<BufferedImage>> imageList) {
+		this.imageList = imageList;
+		return this;
+	}
+	
+	public List<ProjectImageEntry<BufferedImage>> getImageList() {
+		return imageList;
+	}
+	
+	public List<String> getExcludeColumns() {
+		return excludeColumns;
+	}
+	
+	public List<String> getIncludeColumns() {
+		return includeOnlyColumns;
+	}
+	
+	public String getSeparator() {
+		return separator;
+	}
+	
+	public Class<? extends PathObject> getType() {
+		return type;
+	}
+	
 	/**
 	 * Exports the measurements of one or more entries in the project.
 	 * to the given path.
@@ -99,7 +128,7 @@ public class MeasurementExporter {
 		List<String> listCol = new LinkedList<>();
 		
 		// Get all columns to prepare header
-		for (ProjectImageEntry<?> entry: project.getImageList()) {
+		for (ProjectImageEntry<?> entry: imageList) {
 			try {
 				ImageData<?> imageData = entry.readImageData();
 				ObservableMeasurementTableData model = new ObservableMeasurementTableData();
@@ -190,80 +219,131 @@ public class MeasurementExporter {
 	
 	
 	
-	public void exportAnnotationMeasurements2(String pathOut) throws IOException {
-		Map<ProjectImageEntry<?>, String[]> imageCols = new HashMap<ProjectImageEntry<?>, String[]>();
-		Map<ProjectImageEntry<?>, Integer> nImageEntries = new HashMap<ProjectImageEntry<?>, Integer>();
-		List<String> allColumns = new ArrayList<String>();
-		Multimap<String, String> valueMap = LinkedListMultimap.create();
-		List<ProjectImageEntry<BufferedImage>> imageList = project.getImageList();
-		
-		for (ProjectImageEntry<?> entry: imageList) {
-			try {
-				ImageData<?> imageData = entry.readImageData();
-				ObservableMeasurementTableData model = new ObservableMeasurementTableData();
-				model.setImageData(imageData, imageData == null ? Collections.emptyList() : imageData.getHierarchy().getObjects(null, type));
-				
-				List<String> data = SummaryMeasurementTableCommand.getTableModelStrings(model, PathPrefs.getTableDelimiter(), excludeColumns);
-				String[] header = data.get(0).split("\t");
-				imageCols.put(entry, header);
-				nImageEntries.put(entry, data.size()-1);
-				
-				for (String col: header) {
-					if (!allColumns.contains(col)  && !excludeColumns.contains(col))
-						allColumns.add(col);
-				}
-				
-				// To keep the same column order, just delete non-relevant columns
-				if (includeOnlyColumns.size() > 0)
-					allColumns.removeIf(n -> !includeOnlyColumns.contains(n));
-				
-				for (int i = 1; i < data.size(); i++) {
-					
-					String[] row = data.get(i).split("\t");
-					// Put value in map
-					for (int elem = 0; elem < row.length; elem++) {
-						if (allColumns.contains(header[elem]))
-							valueMap.put(header[elem], row[elem]);
-					}
-				}
-				
-				
-
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
-		
-		}
-		
-		FileWriter writer = new FileWriter(pathOut);
-		writer.write(String.join(separator, allColumns));
-		writer.write("\n");
-
-		Iterator[] its = new Iterator[allColumns.size()];
-		for (int col = 0; col < allColumns.size(); col++) {
-			its[col] = valueMap.get(allColumns.get(col)).iterator();
-		}
-		
-		for (ProjectImageEntry<?> entry: imageList) {
-			for (int nObject = 0; nObject < nImageEntries.get(entry); nObject++) {
-				for (int nCol = 0; nCol < allColumns.size(); nCol++) {
-					if (Arrays.stream(imageCols.get(entry)).anyMatch(allColumns.get(nCol)::equals)) {
-						String val = (String)its[nCol].next();
-						// NaN values -> blank
-						if (val.equals("NaN"))
-							val = "";
-						writer.write(val);
-						writer.write(separator);
-					} else
-						writer.write(separator);
-				}
-				writer.write("\n");
-			}
-		}
+	public void exportAnnotationMeasurements2(String pathOut) throws IOException {		
 		
 		
-		writer.flush();
-		writer.close();	
+		
 	}
+	
+	
+	
+	/*
+	class ExportTask extends Task<Void> {
+		
+		MeasurementExporter exporter;
+		String pathOut;
+		
+		public ExportTask(MeasurementExporter exporter, String pathOut) {
+			this.exporter = exporter;
+			this.pathOut = pathOut;
+		}
+
+		@Override
+		protected Void call() throws Exception {
+			
+			long startTime = System.currentTimeMillis();
+			
+			Map<ProjectImageEntry<?>, String[]> imageCols = new HashMap<ProjectImageEntry<?>, String[]>();
+			Map<ProjectImageEntry<?>, Integer> nImageEntries = new HashMap<ProjectImageEntry<?>, Integer>();
+			List<String> allColumns = new ArrayList<String>();
+			Multimap<String, String> valueMap = LinkedListMultimap.create();
+			
+			int counter = 0;
+			
+			for (ProjectImageEntry<?> entry: imageList) {
+				updateProgress(counter, imageList.size()*2);
+				counter++;
+				updateMessage("Calulcating measurements for " + entry.getImageName() + " (" + counter + "/" + imageList.size()*2 + ")");
+				
+				try {
+					ImageData<?> imageData = entry.readImageData();
+					ObservableMeasurementTableData model = new ObservableMeasurementTableData();
+					model.setImageData(imageData, imageData == null ? Collections.emptyList() : imageData.getHierarchy().getObjects(null, type));
+					
+					List<String> data = SummaryMeasurementTableCommand.getTableModelStrings(model, PathPrefs.getTableDelimiter(), excludeColumns);
+					String[] header = data.get(0).split("\t");
+					imageCols.put(entry, header);
+					nImageEntries.put(entry, data.size()-1);
+					
+					for (String col: header) {
+						if (!allColumns.contains(col)  && !excludeColumns.contains(col))
+							allColumns.add(col);
+					}
+					
+					// To keep the same column order, just delete non-relevant columns
+					if (!includeOnlyColumns.get(0).isEmpty())
+						allColumns.removeIf(n -> !includeOnlyColumns.contains(n));
+					
+					for (int i = 1; i < data.size(); i++) {
+						
+						String[] row = data.get(i).split("\t");
+						// Put value in map
+						for (int elem = 0; elem < row.length; elem++) {
+							if (allColumns.contains(header[elem]))
+								valueMap.put(header[elem], row[elem]);
+						}
+					}
+					
+					
+
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			
+			}
+			
+			
+			FileWriter writer = new FileWriter(pathOut);
+			writer.write(String.join(separator, allColumns));
+			writer.write("\n");
+
+			Iterator[] its = new Iterator[allColumns.size()];
+			for (int col = 0; col < allColumns.size(); col++) {
+				its[col] = valueMap.get(allColumns.get(col)).iterator();
+			}
+			
+			for (ProjectImageEntry<?> entry: imageList) {
+				counter++;
+				updateMessage("Exporting meeasurements for " + entry.getImageName() + " (" + counter + "/" + imageList.size()*2 + ")");
+				
+				for (int nObject = 0; nObject < nImageEntries.get(entry); nObject++) {
+					for (int nCol = 0; nCol < allColumns.size(); nCol++) {
+						if (Arrays.stream(imageCols.get(entry)).anyMatch(allColumns.get(nCol)::equals)) {
+							String val = (String)its[nCol].next();
+							// NaN values -> blank
+							if (val.equals("NaN"))
+								val = "";
+							writer.write(val);
+							writer.write(separator);
+						} else
+							writer.write(separator);
+					}
+					writer.write("\n");
+				}
+			}
+			
+			
+			writer.flush();
+			writer.close();	
+			
+			long endTime = System.currentTimeMillis();
+			
+			long timeMillis = endTime - startTime;
+			String time = null;
+			if (timeMillis > 1000*60)
+				time = String.format("Total processing time: %.2f minutes", timeMillis/(1000.0 * 60.0));
+			else if (timeMillis > 1000)
+				time = String.format("Total processing time: %.2f seconds", timeMillis/(1000.0));
+			else
+				time = String.format("Total processing time: %d milliseconds", timeMillis);
+			logger.info("Processed {} images", imageList.size());
+			logger.info(time);
+			
+			return null;
+			
+		}
+		
+	}
+	*/
 
 }
