@@ -194,10 +194,15 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		tree.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
 		tree.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
 			Object selected = n == null ? null : n.getValue();
-			if (selected instanceof ProjectImageEntry)
-				descriptionText.set(((ProjectImageEntry<?>)selected).getDescription());
-			else
+			try {
+				var entry = (ProjectImageEntry<?>)selected;
+				if (!entry.getDescription().equals(""))
+					descriptionText.set(entry.getDescription());
+				else
+					descriptionText.set(null);
+			} catch (Exception e) {
 				descriptionText.set(null);
+			}
 		});
 
 		TitledPane titledTree = new TitledPane("Image list", mdTree);
@@ -342,7 +347,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			if (project != null && entry != null) {
 				if (showDescriptionEditor(entry)) {
 					descriptionText.set(entry.getDescription());
-					syncProject(project);						
+					syncProject(project);				
 				}
 			} else {
 				Dialogs.showErrorMessage("Edit image description", "No entry is selected!");
@@ -654,6 +659,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		TextArea editor = new TextArea();
 		editor.setWrapText(true);
 		editor.setText(entry.getDescription());
+		editor.setPromptText("Add description here");
 		Dialog<ButtonType> dialog = new Dialog<>();
 		dialog.getDialogPane().getButtonTypes().setAll(ButtonType.OK, ButtonType.CANCEL);
 		dialog.setTitle("Image description");
