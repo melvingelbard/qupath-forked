@@ -19,6 +19,7 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.align.InteractiveImageAlignmentCommand;
 import qupath.lib.gui.extensions.QuPathExtension;
+import qupath.lib.gui.ml.commands.PyTorchClassifierCommand;
 import qupath.lib.gui.tools.MenuTools;
 import qupath.lib.images.servers.ColorTransforms;
 import qupath.lib.io.GsonTools;
@@ -69,7 +70,8 @@ public class ExperimentalExtension implements QuPathExtension {
                 qupath.getMenu("Classify>Pixel classification", true),
                 QuPathGUI.createCommandAction(new PixelClassifierCommand(), "Train pixel classifier (experimental)", null, new KeyCodeCombination(KeyCode.P, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN)),
                 QuPathGUI.createCommandAction(new PixelClassifierLoadCommand(qupath), "Load pixel classifier (experimental)"),
-                QuPathGUI.createCommandAction(new SimpleThresholdCommand(qupath), "Create simple thresholder (experimental)")
+                QuPathGUI.createCommandAction(new SimpleThresholdCommand(qupath), "Create simple thresholder (experimental)"),
+                QuPathGUI.createCommandAction(new PyTorchClassifierCommand(qupath), "Create PyTorch classifier (experimental)")
         );
 
     	MenuTools.addMenuItems(

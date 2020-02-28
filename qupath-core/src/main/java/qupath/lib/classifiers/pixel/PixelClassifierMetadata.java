@@ -299,8 +299,10 @@ public class PixelClassifierMetadata {
     		if (this.inputChannels != null) Arrays.fill(this.inputChannels, null);
     		else this.inputChannels = new ImageChannel[this.inputChannelNames.size()];
     		
-    		for (int i = 0; i < this.inputChannelNames.size(); i++) {
-    			this.inputChannels[i] = (ImageChannel.getInstance(this.inputChannelNames.get(i), null));
+    		if (!(this.inputChannelNames == null)) {
+        		for (int i = 0; i < this.inputChannelNames.size(); i++) {
+        			this.inputChannels[i] = (ImageChannel.getInstance(this.inputChannelNames.get(i), null));
+        		}
     		}
     		return this;
     	}

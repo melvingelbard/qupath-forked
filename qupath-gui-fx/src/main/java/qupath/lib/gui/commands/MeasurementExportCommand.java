@@ -264,7 +264,7 @@ public class MeasurementExportCommand implements PathCommand {
 		PaneTools.addGridRow(optionPane, row++, 0, "Enter the specific column(s) to include (case sensitive)", includeLabel, includeText, includeText);
 		
 		Label excludeLabel = new Label("Columns to exclude (Optional)");
-		excludeLabel.setLabelFor(excludeLabel);
+		excludeLabel.setLabelFor(excludeText);
 		excludeText.setPromptText("Image, Name, Class, ...");
 		PaneTools.addGridRow(optionPane, row++, 0, "Enter the specific column(s) to include (case sensitive)", excludeLabel, excludeText, excludeText);
 		
@@ -290,7 +290,7 @@ public class MeasurementExportCommand implements PathCommand {
 		dialog = new Dialog<>();
 		dialog.getDialogPane().setMinHeight(400);
 		dialog.getDialogPane().setMinWidth(600);
-		dialog.setTitle("Open image");
+		dialog.setTitle("Export measurements");
 		dialog.getDialogPane().getButtonTypes().addAll(btnExport, ButtonType.CANCEL);
 		dialog.getDialogPane().lookupButton(btnExport).setDisable(true);
 		dialog.getDialogPane().setContent(mainPane);		

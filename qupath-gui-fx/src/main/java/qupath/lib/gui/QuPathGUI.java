@@ -234,6 +234,7 @@ import qupath.lib.gui.commands.SparseImageServerCommand;
 import qupath.lib.gui.commands.SummaryMeasurementTableCommand;
 import qupath.lib.gui.commands.TMAAddNote;
 import qupath.lib.gui.commands.TMAViewerCommand;
+import qupath.lib.gui.commands.TileExportCommand;
 import qupath.lib.gui.commands.TMAGridAdd;
 import qupath.lib.gui.commands.TMAGridAdd.TMAAddType;
 import qupath.lib.gui.commands.TMAGridRemove.TMARemoveType;
@@ -398,7 +399,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 								RIGID_OBJECT_EDITOR, SHOW_COMMAND_LIST,
 								TMA_SCORE_IMPORTER, TMA_ADD_NOTE, COLOR_DECONVOLUTION_REFINE, SHOW_LOG, TMA_RELABEL,
 								SHOW_CELL_BOUNDARIES, SHOW_CELL_NUCLEI, SHOW_CELL_BOUNDARIES_AND_NUCLEI, SHOW_CELL_CENTROIDS,
-								SUMMARY_TMA, SUMMARY_ANNOTATIONS, SUMMARY_DETECTIONS, EXPORT_MEASUREMENTS,
+								SUMMARY_TMA, SUMMARY_ANNOTATIONS, SUMMARY_DETECTIONS, EXPORT_MEASUREMENTS, EXPORT_TILES,
 								VIEW_TRACKER, MEASUREMENT_MAP, WORKFLOW_DISPLAY,
 								DELETE_SELECTED_OBJECTS, CLEAR_HIERARCHY, CLEAR_DETECTIONS, CLEAR_TMA_CORES, CLEAR_ANNOTATIONS,
 								PROJECT_NEW, PROJECT_OPEN, PROJECT_CLOSE, PROJECT_SAVE, PROJECT_IMPORT_IMAGES, PROJECT_EXPORT_IMAGE_LIST, PROJECT_METADATA,
@@ -3373,7 +3374,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				getActionMenuItem(GUIActions.SUMMARY_ANNOTATIONS),
 				getActionMenuItem(GUIActions.SUMMARY_DETECTIONS),
 				null,
-				getActionMenuItem(GUIActions.EXPORT_MEASUREMENTS)
+				getActionMenuItem(GUIActions.EXPORT_MEASUREMENTS),
+				getActionMenuItem(GUIActions.EXPORT_TILES)
 //				null,
 //				createCommandAction(new TMADescendantsMeasurementCommand(this), "Add core summary measurement (TMA)"),
 //				null,
@@ -3871,6 +3873,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			return createCommandAction(new SummaryMeasurementTableCommand(this, PathAnnotationObject.class), "Show annotation measurements");
 		case EXPORT_MEASUREMENTS:
 			return createCommandAction(new MeasurementExportCommand(this), "Export measurements");
+		case EXPORT_TILES:
+			return createCommandAction(new TileExportCommand(this), "Export tiles");
 		
 		case VIEW_TRACKER:
 			return createCommandAction(new ViewTrackerCommand(this), "Show tracking panel", null, new KeyCodeCombination(KeyCode.T, KeyCombination.SHIFT_DOWN)); // TODO: Note: this only works with the original viewer
@@ -4497,7 +4501,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 					qupath.getActionMenuItem(GUIActions.SUMMARY_TMA),
 					qupath.getActionMenuItem(GUIActions.SUMMARY_ANNOTATIONS),
 					qupath.getActionMenuItem(GUIActions.SUMMARY_DETECTIONS),
-					qupath.getActionMenuItem(GUIActions.EXPORT_MEASUREMENTS)
+					qupath.getActionMenuItem(GUIActions.EXPORT_MEASUREMENTS),
+					qupath.getActionMenuItem(GUIActions.EXPORT_TILES)
 					);
 			btnMeasure.setOnMouseClicked(e -> {
 				popupMeasurements.show(btnMeasure, e.getScreenX(), e.getScreenY());

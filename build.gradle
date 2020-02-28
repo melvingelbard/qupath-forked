@@ -187,6 +187,7 @@ allprojects {
     jfreesvgVersion    = '3.4'
     // Note, if OpenCV is a SNAPSHOT version then it must already be installed locally (with Maven)
     opencvVersion      = '4.1.2-1.5.2'
+    onnxruntimeVersion = '1.1.2-1.5.3'
   }
 
   configurations {
@@ -198,6 +199,7 @@ allprojects {
     controlsfx
     jfxtras
     opencv
+    onnxruntime
     jpen
     imagej
     openslide
@@ -251,6 +253,11 @@ allprojects {
       else
 	    opencv "org.bytedeco:opencv:${opencvVersion}:${nativesCPP}"
     }
+
+    //onnxruntime "org.bytedeco:onnxruntime:onnxruntime-${onnxruntimeVersion}-20200227.122225-3"
+    onnxruntime "org.bytedeco:onnxruntime:onnxruntime-1.1.2-1.5.3-20200228587.122225-3-windows-x86_64"
+    onnxruntime "org.bytedeco:openblas::${nativesCPP}"
+    onnxruntime "org.bytedeco:onnxruntime:${onnxruntimeVersion}:${nativesCPP}"
 
     jpen "net.sourceforge.jpen:jpen:${jpenVersion}"
     if (nativesClassifier != null)
