@@ -1,11 +1,15 @@
 package qupath.lib.gui.commands;
 
 import java.awt.image.BufferedImage;
+import java.awt.image.DataBufferDouble;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
+import java.nio.DoubleBuffer;
+import java.nio.LongBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -16,10 +20,20 @@ import java.util.Set;
 import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 
+
+import org.bytedeco.javacpp.*;
+import org.bytedeco.tensorflow.*;
+import static org.bytedeco.tensorflow.global.tensorflow.*;
+import org.bytedeco.onnxruntime.AllocatorWithDefaultOptions;
+import org.bytedeco.onnxruntime.Env;
+import org.bytedeco.onnxruntime.Session;
+import org.bytedeco.onnxruntime.SessionOptions;
+import org.bytedeco.onnxruntime.global.onnxruntime;
 import org.controlsfx.control.ListSelectionView;
 import org.controlsfx.dialog.ProgressDialog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -27,15 +41,13 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.stream.JsonReader;
 
-
-import javafx.application.Platform;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
-import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.event.ActionEvent;
@@ -45,10 +57,12 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.Control;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
+import javafx.scene.control.RadioButton;
 import javafx.scene.control.Separator;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
@@ -75,7 +89,9 @@ import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageChannel;
+import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.LabeledImageServer;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.writers.TileExporter;
 import qupath.lib.io.GsonTools;
 import qupath.lib.objects.PathAnnotationObject;
@@ -83,8 +99,6 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
-
-//import org.bytedeco.
 
 
 /**
@@ -106,15 +120,20 @@ public class TileExportCommand implements PathCommand {
 	private List<ProjectImageEntry<BufferedImage>> previousImages = new ArrayList<>();
 	private List<ImageChannel> selectedChannels = new ArrayList<>();
 	
+	// Functionality variables
+	private Map<Set<ImageChannel>, List<String>> mapChannels = new HashMap<>();
+	private Map<PixelCalibration, List<String>> mapPixelCalibrations = new HashMap<>();
+	
 	// GUI
 	private TextField outputText = new TextField();
 	private ComboBox<String> comboPathObject = new ComboBox<>();
 	private ComboBox<String> comboImageExtension = new ComboBox<>();
 	private ComboBox<String> comboLabelExtension = new ComboBox<>();
-	private ComboBox<String> channelsComboBox = new ComboBox<>();
+	private ComboBox<String> comboChannels = new ComboBox<>();
 	private TextField tileWidthText = new TextField();
 	private TextField tileHeightText = new TextField();
 	private TextField overlapText = new TextField();
+	private Label labelSameImageWarning = new Label();
 	
 	private ButtonType btnExport = new ButtonType("Export", ButtonData.OK_DONE);
 	
@@ -135,26 +154,36 @@ public class TileExportCommand implements PathCommand {
 		}
 		
 		
+		onnxruntime onnx = new onnxruntime();
+		//Scope scope = Scope.NewRootScope();
+		
+		
 		// Check how the project is structured. If the entries have different 
 		// parameters (e.g. pixel size or channels), then the export should
 		// not include these entries at the same time.
-		String projectPath = project.getPath().toString(); 
-		Map<Set<ImageChannel>, List<String>> mapChannels = getProjectEntryChannelMap(projectPath);
+		String projectPath = project.getPath().toString();
+		updateChannelAndPixelCalibrationMap2(projectPath);
+
 
 		BorderPane mainPane = new BorderPane();
 		
 		BorderPane imageEntryPane = new BorderPane();
 		GridPane optionPane = new GridPane();
 		
+		List<Control> controls = new ArrayList<>();
+		
 		
 		// TOP PANE (SELECT PROJECT ENTRIES FOR EXPORT)
 		ListSelectionView<ProjectImageEntry<BufferedImage>> listSelectionView = new ListSelectionView<>();
+		List<ProjectImageEntry<BufferedImage>> currentImages = new ArrayList<>();
 		project = qupath.getProject();
 		listSelectionView.getSourceItems().setAll(project.getImageList());
 		if (listSelectionView.getSourceItems().containsAll(previousImages)) {
 			listSelectionView.getSourceItems().removeAll(previousImages);
 			listSelectionView.getTargetItems().addAll(previousImages);
 		}
+		
+		
 		listSelectionView.setCellFactory(new Callback<ListView<ProjectImageEntry<BufferedImage>>,
 	            ListCell<ProjectImageEntry<BufferedImage>>>() {
             @Override 
@@ -174,18 +203,51 @@ public class TileExportCommand implements PathCommand {
                 		setGraphic(null);
                 		tooltip.setText(item.toString());
             			setTooltip(tooltip);
-            			var testttt = areSimilarEntries(mapChannels, listSelectionView.getTargetItems());
-            			if (areSimilarEntries(mapChannels, listSelectionView.getTargetItems()).size() > 1) {
-            				logger.warn("BAD");
-            			}
-            			if (listSelectionView.getTargetItems().isEmpty())
+            			setStyle("-fx-text-fill: black;");
+            			
+            			// TODO: Add more colours
+            			String[] colours = new String[] {"green", "blue", "brown", "orange", "purple", "cyan", "darkgoldenrod", "darkmagenta", "darkturquoise"};
+            			var similarEntries = getSimilarEntries(listSelectionView.getTargetItems());
+            			if (similarEntries.size() > 1) {
+            				int index = 0;
+            				for (var values: similarEntries) {
+            					if (values.contains(item)) {
+            						setStyle("-fx-text-fill: " + colours[index] + ";");
+            						break;
+            					}
+            					index++;
+            				}
+            				
+            				labelSameImageWarning.setText("The selected images cannot be exported as\na batch. "
+            						+ "Please choose images with similar\n"
+            						+ " characteristics (colours).");
+            				labelSameImageWarning.setVisible(true);
+            				for (int field = 0; field < controls.size(); field++)
+            					controls.get(field).setDisable(true);
             				dialog.getDialogPane().lookupButton(btnExport).setDisable(true);
-            			else
-            				dialog.getDialogPane().lookupButton(btnExport).setDisable(false);
+            			} else {
+            				labelSameImageWarning.setVisible(false);
+            				if (validForm(controls, listSelectionView))
+            					dialog.getDialogPane().lookupButton(btnExport).setDisable(false);
+            				for (int field = 0; field < controls.size(); field++)
+            					controls.get(field).setDisable(false);
+            				controls.get(6).setDisable(true);
+            				if (listSelectionView.getTargetItems().isEmpty())
+                				dialog.getDialogPane().lookupButton(btnExport).setDisable(true);
+            				for (var current : currentImages) {
+            					if (listSelectionView.getTargetItems().contains(current)) {
+                					labelSameImageWarning.setText(
+                							"A selected image is open in the viewer!\n"
+                							+ "Use 'File>Reload data' to see changes.");
+                					labelSameImageWarning.setVisible(true);
+                				}
+            				}
+            			}
                 	}
                 };
             }
         });
+		
 		
 		// Create search bar and add listener to filter ListSelectionView
 		TextField tfFilter = new TextField();
@@ -210,8 +272,7 @@ public class TileExportCommand implements PathCommand {
 		listSelectionView.setSourceFooter(paneFooter);
 
 		// TARGET FOOTER PANE
-		List<ProjectImageEntry<BufferedImage>> currentImages = new ArrayList<>();
-		Label labelSameImageWarning = new Label(
+		labelSameImageWarning = new Label(
 				"A selected image is open in the viewer!\n"
 				+ "Use 'File>Reload data' to see changes.");
 		
@@ -221,22 +282,7 @@ public class TileExportCommand implements PathCommand {
 		labelSelected.setMaxWidth(Double.MAX_VALUE);
 		GridPane.setHgrow(labelSelected, Priority.ALWAYS);
 		GridPane.setFillWidth(labelSelected, Boolean.TRUE);
-		Platform.runLater(() -> {
-			getTargetItems(listSelectionView).addListener((ListChangeListener.Change<? extends ProjectImageEntry<?>> e) -> {
-				labelSelected.setText(e.getList().size() + " selected");
-				if (labelSameImageWarning != null && currentImages != null) {
-					boolean visible = false;
-					var targets = e.getList();
-					for (var current : currentImages) {
-						if (targets.contains(current)) {
-							visible = true;
-							break;
-						}
-					}
-					labelSameImageWarning.setVisible(visible);
-				}
-			});
-		});
+
 		
 		var paneSelected = new GridPane();
 		PaneTools.addGridRow(paneSelected, 0, 0, "Selected images", labelSelected);
@@ -250,19 +296,17 @@ public class TileExportCommand implements PathCommand {
 				.filter(d -> d != null)
 				.collect(Collectors.toList()));
 		// Create a warning label to display if we need to
-		if (!currentImages.isEmpty()) {
-			labelSameImageWarning.setTextFill(Color.RED);
-			labelSameImageWarning.setMaxWidth(Double.MAX_VALUE);
-			labelSameImageWarning.setMinHeight(Label.USE_PREF_SIZE);
-			labelSameImageWarning.setTextAlignment(TextAlignment.CENTER);
-			labelSameImageWarning.setAlignment(Pos.CENTER);
-			labelSameImageWarning.setVisible(false);
-			PaneTools.setHGrowPriority(Priority.ALWAYS, labelSameImageWarning);
-			PaneTools.setFillWidth(Boolean.TRUE, labelSameImageWarning);
-			PaneTools.addGridRow(paneSelected, 1, 0,
-					"'Run For Project' will save the data file for any image that is open - you will need to reopen the image to see the changes",
-					labelSameImageWarning);
-		}
+		labelSameImageWarning.setTextFill(Color.RED);
+		labelSameImageWarning.setMaxWidth(Double.MAX_VALUE);
+		labelSameImageWarning.setMinHeight(Label.USE_PREF_SIZE);
+		labelSameImageWarning.setTextAlignment(TextAlignment.CENTER);
+		labelSameImageWarning.setAlignment(Pos.CENTER);
+		labelSameImageWarning.setVisible(false);
+		PaneTools.setHGrowPriority(Priority.ALWAYS, labelSameImageWarning);
+		PaneTools.setFillWidth(Boolean.TRUE, labelSameImageWarning);
+		PaneTools.addGridRow(paneSelected, 1, 0,
+				"'Run For Project' will save the data file for any image that is open - you will need to reopen the image to see the changes",
+				labelSameImageWarning);
 		listSelectionView.setTargetFooter(paneSelected);
 		
 		
@@ -282,7 +326,16 @@ public class TileExportCommand implements PathCommand {
 				if (pathOut.isFile())
 					pathOut = new File(pathOut.getParent());
 				outputText.setText(pathOut.getAbsolutePath());
+				if (validForm(controls, listSelectionView))
+					dialog.getDialogPane().lookupButton(btnExport).setDisable(false);
 			}
+		});
+		
+		outputText.textProperty().addListener((v, o, n) -> {
+			if (!n.isEmpty() && validForm(controls, listSelectionView))
+				dialog.getDialogPane().lookupButton(btnExport).setDisable(false);
+			else
+				dialog.getDialogPane().lookupButton(btnExport).setDisable(true);
 		});
 		
 		//PaneTools.addGridRow(optionPane, row++, 0, "Enter the output file path (with format extension)", pathOutputLabel, outputText, btnChooseFile);
@@ -291,7 +344,6 @@ public class TileExportCommand implements PathCommand {
 		optionPane.add(btnChooseFile, 2, row++);
 		pathOutputLabel.setLabelFor(outputText);
 		
-
 		Label pathObjectLabel = new Label("Objects to use");
 		PaneTools.addGridRow(optionPane, row++, 0, "Choose to export either annotations or detections", pathObjectLabel, comboPathObject, comboPathObject, comboPathObject);
 		pathObjectLabel.setLabelFor(comboPathObject);
@@ -300,8 +352,8 @@ public class TileExportCommand implements PathCommand {
 
 		
 		Label channelsLabel = new Label("Channels");
-		channelsComboBox.getItems().setAll("All channels", "Custom channels");
-		channelsComboBox.getSelectionModel().selectFirst();
+		comboChannels.getItems().setAll("All channels", "Custom channels");
+		comboChannels.getSelectionModel().selectFirst();
 		Button btnChooseChannels = new Button("Edit");
 		btnChooseChannels.setOnAction(e -> {
 			List<ImageChannel> tempAllChannels = new ArrayList<>(selectedChannels);
@@ -433,27 +485,62 @@ public class TileExportCommand implements PathCommand {
 				selectedChannels.clear();
 				selectedChannels.addAll(tempAllChannels);
 				if (selectedChannels.size() != allChannels.size())
-					channelsComboBox.getSelectionModel().clearAndSelect(1);
+					comboChannels.getSelectionModel().clearAndSelect(1);
 				else
-					channelsComboBox.getSelectionModel().clearAndSelect(0);
+					comboChannels.getSelectionModel().clearAndSelect(0);
 			}
 		});
-		PaneTools.addGridRow(optionPane, row++, 0, "Specific channels to export", channelsLabel, channelsComboBox, btnChooseChannels);
+		PaneTools.addGridRow(optionPane, row++, 0, "Specific channels to export", channelsLabel, comboChannels, btnChooseChannels);
 		
-		Label downsampleLabel = new Label("Downsample");
+		RadioButton downsampleRadio = new RadioButton("Downsample");
+		downsampleRadio.setSelected(true);
 		TextField downsampleText = new TextField();
 		downsampleText.setText("1");
-		downsampleText.setTextFormatter( new TextFormatter<>(c ->{
+		downsampleText.setTextFormatter(new TextFormatter<>(c -> {
 			String input = c.getControlNewText();
-			if (!input.matches("\\d*") || input.length() > 3)
+			if ((!input.matches("\\d+\\.?\\d*") || (input.length() > 7)) && (!input.isEmpty()))
 				return null;
 			return c;
 		}));
-		Label pixelSizeLabel = new Label("Pixel Size");
-		TextField pixelSizeText = new TextField();
-		pixelSizeText.setText("To implement?");
 		
-		PaneTools.addGridRow(optionPane, row++, 0, "Downsampling of the output images", downsampleLabel, downsampleText, pixelSizeLabel, pixelSizeText);
+		RadioButton pixelSizeRadio = new RadioButton("Pixel Size");
+		pixelSizeRadio.setSelected(false);
+		TextField pixelSizeText = new TextField();
+		pixelSizeText.setDisable(true);
+		pixelSizeText.setTextFormatter(new TextFormatter<>(c -> {
+			String input = c.getControlNewText();
+			if ((!input.matches("\\d+\\.?\\d*") || (input.length() > 7)) && (!input.isEmpty()))
+				return null;
+			return c;
+		}));
+		
+		downsampleRadio.selectedProperty().addListener(new ChangeListener<Boolean>() {
+			@Override
+		    public void changed(ObservableValue<? extends Boolean> observable, Boolean oldValue, Boolean newValue) {
+				if (newValue) {
+					pixelSizeText.setDisable(true);
+					pixelSizeRadio.setSelected(false);
+					downsampleText.setDisable(false);
+				} else if (!newValue && !pixelSizeRadio.isSelected())
+					downsampleRadio.setSelected(true);
+			}
+			
+		});
+		
+		pixelSizeRadio.selectedProperty().addListener(new ChangeListener<Boolean>() {
+			@Override
+		    public void changed(ObservableValue<? extends Boolean> observable, Boolean oldValue, Boolean newValue) {
+				if (newValue) {
+					downsampleText.setDisable(true);
+					downsampleRadio.setSelected(false);
+					pixelSizeText.setDisable(false);
+				} else if (!newValue && !downsampleRadio.isSelected())
+					pixelSizeRadio.setSelected(true);
+			}
+		});
+
+		
+		PaneTools.addGridRow(optionPane, row++, 0, "Downsampling of the output images", downsampleRadio, downsampleText, pixelSizeRadio, pixelSizeText);
 		
 		Separator sep = new Separator();
 		PaneTools.addGridRow(optionPane, row++, 0, "", sep, sep, sep, sep, sep, sep);
@@ -518,15 +605,30 @@ public class TileExportCommand implements PathCommand {
 		imageEntryPane.setCenter(listSelectionView)	;
 
 		mainPane.setTop(imageEntryPane);
-		//mainPane.setCenter(centrePane);
 		mainPane.setBottom(optionPane);
+		
+		// Add all fields to control ArrayList to easily turn them on/off
+		controls.addAll(Arrays.asList(	outputText,
+										btnChooseFile,
+										comboPathObject,
+										comboChannels,
+										btnChooseChannels,
+										downsampleText,
+										pixelSizeText,
+										comboImageExtension,
+										comboLabelExtension,
+										tileHeightText,
+										tileWidthText,
+										overlapText,
+										includePartialTiles,
+										runInBackground
+										));
 		
 		Optional<ButtonType> result = dialog.showAndWait();
 		
 		if (!result.isPresent() || result.get() != btnExport || result.get() == ButtonType.CANCEL)
 			return;
 		
-
 		Map<String, String> parameters = new HashMap<>();
 		parameters.put("height", tileHeightText.getText());
 		parameters.put("width", tileWidthText.getText());
@@ -564,13 +666,32 @@ public class TileExportCommand implements PathCommand {
 		progress.show();
 	}
 	
-	private Map<Set<ImageChannel>, List<String>> getProjectEntryChannelMap(String projectPath) {
+	/**
+	 * Checks if the form is valid and can be used for export
+	 * @param controls
+	 * @return isValid
+	 */
+	private boolean validForm(List<Control> controls, ListSelectionView<ProjectImageEntry<BufferedImage>> listSelectionView) {
+		TextField outText = (TextField) controls.get(0);
+		if (outText.getText().isEmpty())
+			return false;
+		if (getTargetItems(listSelectionView).isEmpty())
+			return false;
+		return true;
+	}
+	
+	// TODO: How should we handle entries that have moved and URIs don't match anymore?
+	private Map<Set<ImageChannel>, List<String>> updateChannelAndPixelCalibrationMap(String projectPath) {
 		Map<Set<ImageChannel>, List<String>> mapChannels = new HashMap<>();
 		
 		try {
 			JsonReader reader = new JsonReader(new FileReader(projectPath));
 			JsonElement element = JsonParser.parseReader(reader);
 			JsonObject obj = element.getAsJsonObject();
+			
+			var gson = GsonTools.getInstance();
+			var something = gson.fromJson(element.toString(), qupath.getProject().getClass());
+			
 			
 			JsonArray projectEntries = obj.get("images").getAsJsonArray();
             for (int i = 0; i < projectEntries.size(); i++){
@@ -604,28 +725,113 @@ public class TileExportCommand implements PathCommand {
 		
 		return mapChannels;
 	}
-	
-	private Map<Set<ImageChannel>, List<ProjectImageEntry<BufferedImage>>> areSimilarEntries(Map<Set<ImageChannel>, List<String>> channelMap, ObservableList<ProjectImageEntry<BufferedImage>> targetItems) {
-		Map<Set<ImageChannel>, List<ProjectImageEntry<BufferedImage>>> out = new HashMap<>();
+
+	// TODO: How should we handle entries that have moved and URIs don't match anymore?
+	// TODO: Sometimes same sets of channels, but the colours are different (e.g. "RED {255, 255, 174/255}")
+	private void updateChannelAndPixelCalibrationMap2(String projectPath) {
+		List<ProjectImageEntry<BufferedImage>> entries = project.getImageList();
 		
-		for (ProjectImageEntry<BufferedImage> targetEntry: targetItems) {
-			var testtt = targetEntry.getServerBuilder().toString();
-			for (var entrySet: channelMap.entrySet()) {
-				var key = entrySet.getKey();
-				var value = entrySet.getValue();
+		for (int i = 0; i < entries.size(); i++) {
+			try {
+				ImageServer<BufferedImage> server = entries.get(i).getServerBuilder().build();
+				Set<ImageChannel> channelSet = new HashSet<ImageChannel>();
+				String entryID = entries.get(i).getID();
+				for (int channel = 0; channel < server.nChannels(); channel++) {
+					channelSet.add(server.getChannel(channel));
+				}
 				
-				if (value.contains(targetEntry.getID())) {
-					if (out.containsKey(key)){
-						out.get(key).add(targetEntry);
-					} else {
-						out.put(key, new ArrayList<>(Arrays.asList(targetEntry)));
-					}
-				} else
-					break;
-					
+				// Store Set of ImageChannels
+				if (mapChannels.containsKey(channelSet))
+	            	mapChannels.get(channelSet).add(entryID);
+	            else
+	            	mapChannels.put(channelSet, new ArrayList<>(Arrays.asList(entryID)));
+				
+				// Store PixelCalibration
+				PixelCalibration pixelCalibration = server.getPixelCalibration();
+				if (mapPixelCalibrations.containsKey(pixelCalibration))
+					mapPixelCalibrations.get(pixelCalibration).add(entryID);
+				else
+					mapPixelCalibrations.put(pixelCalibration, new ArrayList<>(Arrays.asList(entryID)));
+				
+			} catch (Exception e) {
+				e.printStackTrace();
 			}
 		}
-		return out;
+	}
+	
+	/**
+	 * Returns a map with {@code Set<ImageChannel>} as keys and 
+	 * a list of {@code ProjectImageEntry} as values.
+	 * Each set of channels (keys) is paired with a list of 
+	 * project entries (values) whose image is made out of 
+	 * these exact channels.
+	 * @param channelMap
+	 * @param targetItems
+	 * @return map
+	 */
+	private Collection<List<ProjectImageEntry<BufferedImage>>> getSimilarEntries(ObservableList<ProjectImageEntry<BufferedImage>> targetItems) {
+		Map<Set<ImageChannel>, List<ProjectImageEntry<BufferedImage>>> tempMapChannels = new HashMap<>();
+		Map<PixelCalibration, List<ProjectImageEntry<BufferedImage>>> tempMapPixelCalibrations = new HashMap<>();
+		Map<List<Integer>, List<ProjectImageEntry<BufferedImage>>> out = new HashMap<>();
+		
+		for (ProjectImageEntry<BufferedImage> targetEntry: targetItems) {
+			for (var channelEntrySet: mapChannels.entrySet()) {
+				var channelKey = channelEntrySet.getKey();
+				var channelValues = channelEntrySet.getValue();
+				
+				if (channelValues.contains(targetEntry.getID())) {
+					for (var pixelEntrySet: mapPixelCalibrations.entrySet()) {
+						var pixelKey = pixelEntrySet.getKey();
+						var pixelValues = pixelEntrySet.getValue();
+						
+						if (pixelValues.contains(targetEntry.getID())) {
+							// Update temp var for channels
+							if (tempMapChannels.containsKey(channelKey)){
+								tempMapChannels.get(channelKey).add(targetEntry);
+							} else {
+								tempMapChannels.put(channelKey, new ArrayList<>(Arrays.asList(targetEntry)));
+							}
+							
+							// Update temp var for pixel calibrations
+							if (tempMapPixelCalibrations.containsKey(pixelKey)){
+								tempMapPixelCalibrations.get(pixelKey).add(targetEntry);
+							} else {
+								tempMapPixelCalibrations.put(pixelKey, new ArrayList<>(Arrays.asList(targetEntry)));
+							}
+						}
+					}
+				} else {
+					continue;
+				}
+			}
+		}
+		
+		
+		// Iterate through the values (of type List<ProjectImageEntry>)
+		for (var imageChan: tempMapChannels.values()) {
+			int indexChan = 0;
+			
+			// Iterate through each element (of type ProjectImageEntry)
+			for (var imageChanValue: imageChan) {
+				int indexPix = 0;
+				
+				// Iterate through the values (of type List<ProjectImageEntry>)
+				for (var imagePix: tempMapPixelCalibrations.values()) {
+					if (imagePix.contains(imageChanValue)) {
+						List<Integer> indices = new ArrayList<>(Arrays.asList(indexChan, indexPix));
+						if (out.containsKey(indices)) {
+							out.get(indices).add(imageChanValue);
+						} else {
+							out.put(indices, new ArrayList<ProjectImageEntry<BufferedImage>>(Arrays.asList(imageChanValue)));
+						}
+						break;
+					}
+					indexPix++;
+				}
+			}
+			indexChan++;
+		}
+		return out.values();
 	}
 
 	private void updateImageList(final ListSelectionView<ProjectImageEntry<BufferedImage>> listSelectionView, final Project<BufferedImage> project, final String filterText, final boolean withDataOnly) {
@@ -779,7 +985,6 @@ public class TileExportCommand implements PathCommand {
 			Dialogs.showMessageDialog("Export completed", "Successful export!");
 			//Dialogs.showPlainMessage("Export completed", "Successful export completed!");
 	
-			
 			return null;
 			
 		}

@@ -12,18 +12,13 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
-import org.controlsfx.dialog.ProgressDialog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.LinkedListMultimap;
 import com.google.common.collect.Multimap;
 
-import javafx.concurrent.Task;
-import javafx.event.ActionEvent;
-import javafx.scene.control.ButtonType;
 import qupath.lib.gui.commands.SummaryMeasurementTableCommand;
-import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.models.ObservableMeasurementTableData;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
