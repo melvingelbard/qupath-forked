@@ -13,7 +13,6 @@ import java.util.stream.Collectors;
 
 import org.controlsfx.control.action.Action;
 import org.controlsfx.control.action.ActionUtils;
-import org.locationtech.jts.index.bintree.Root;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,6 +22,7 @@ import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
+import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import javafx.geometry.Insets;
@@ -85,9 +85,10 @@ public class PathClassPane {
 	private Pane pane;
 
 	/**
-	 * List displaying available PathClasses
+	 * Tree displaying available PathClasses
 	 */
 	private TreeView<PathClass> treeClasses;
+	private TreeItem<PathClass> root;
 
 	/**
 	 * Filter visible classes
@@ -117,11 +118,11 @@ public class PathClassPane {
 	}
 
 	private Pane createClassPane() {
-		TreeItem<PathClass> root = new TreeItem<PathClass>();
+		root = new TreeItem<PathClass>();
 		treeClasses = new TreeView<>(root);
 		treeClasses.setShowRoot(false);
 
-		var filteredList = qupath.getAvailablePathClasses().filtered(createPredicate(null));
+		FilteredList<PathClass> filteredList = qupath.getAvailablePathClasses().filtered(createPredicate(null));
 		List<TreeItem<PathClass>> filteredListTreeItems = asTreeItemList(filteredList);
 
 		root.getChildren().addAll(filteredListTreeItems);
@@ -229,15 +230,13 @@ public class PathClassPane {
 		GridPane.setHgrow(btnSetClass, Priority.ALWAYS);
 		GridPane.setHgrow(btnAutoClass, Priority.ALWAYS);
 
-		var tfFilter = new TextField();
+		TextField tfFilter = new TextField();
 		tfFilter.setTooltip(new Tooltip("Type to filter classifications in list"));
 		filterText.bind(tfFilter.textProperty());
 		filterText.addListener((v, o, n) -> {
 			filteredList.setPredicate(createPredicate(n));
 			root.getChildren().clear();
 			root.getChildren().addAll(asTreeItemList(filteredList));
-
-
 		});
 		var paneBottom = PaneTools.createRowGrid(tfFilter, paneClassButtons);
 
@@ -267,7 +266,7 @@ public class PathClassPane {
 //		Action actionPopulateFromImageBase = new Action("Populate from image (base classes only)", e -> promptToPopulateFromImage(true));
 
 		actionRemoveClass.disabledProperty().bind(Bindings.createBooleanBinding(() -> {
-			PathClass item = treeClasses.getSelectionModel().getSelectedItem().getValue();
+			PathClass item = getSelectedPathClass();
 			return item == null || PathClassFactory.getPathClassUnclassified() == item;
 		},
 				treeClasses.getSelectionModel().selectedItemProperty()
@@ -298,7 +297,7 @@ public class PathClassPane {
 		MenuItem miSelectObjects = new MenuItem("Select objects with class");
 		miSelectObjects.disableProperty().bind(Bindings.createBooleanBinding(
 				() -> {
-					PathClass item = treeClasses.getSelectionModel().getSelectedItem().getValue();
+					var item = treeClasses.getSelectionModel().getSelectedItem();
 					return item == null;
 				},
 				treeClasses.getSelectionModel().selectedItemProperty()));
@@ -404,9 +403,9 @@ public class PathClassPane {
 
 	void updateAutoSetPathClassProperty() {
 		PathClass pathClass = null;
-		if (doAutoSetPathClass.get()) {
+		if (doAutoSetPathClass.get())
 			pathClass = getSelectedPathClass();
-		}
+		
 		if (pathClass == null || pathClass == PathClassFactory.getPathClassUnclassified())
 			PathPrefs.setAutoSetAnnotationClass(null);
 		else
@@ -509,10 +508,16 @@ public class PathClassPane {
 			btn = Dialogs.showYesNoCancelDialog("Set available classes", "Keep existing available classes?");
 		if (btn == DialogButton.YES) {
 			newClasses.removeAll(qupath.getAvailablePathClasses());
-			return qupath.getAvailablePathClasses().addAll(newClasses);
+			var list = qupath.getAvailablePathClasses();
+			list.addAll(newClasses);
+			refreshRoot(list);
+			return true;
 		} else if (btn == DialogButton.NO) {
 			newClasses.add(0, PathClassFactory.getPathClassUnclassified());
-			return qupath.getAvailablePathClasses().setAll(newClasses);
+			var list = qupath.getAvailablePathClasses();
+			list.setAll(newClasses);
+			refreshRoot(list);
+			return true;
 		} else
 			return false;
 	}
@@ -575,10 +580,19 @@ public class PathClassPane {
 		if (list.contains(pathClass)) {
 			Dialogs.showErrorMessage("Add class", "Class '" + input + "' already exists!");
 			return false;
-		}
+		} else if (input.toLowerCase().equals("null"))
+			Dialogs.showErrorMessage("Add class", "Cannot add a 'null' class, try another name!");
 		list.add(pathClass);
+		refreshRoot(list);
+		
 		return true;
 	}
+
+	private void refreshRoot(ObservableList<PathClass> list) {
+		root.getChildren().clear();
+		root.getChildren().addAll(asTreeItemList(list));
+	}
+
 
 	/**
 	 * Prompt to edit the selected classification.
@@ -722,7 +736,11 @@ public class PathClassPane {
 	 * @return
 	 */
 	PathClass getSelectedPathClass() {
-		return treeClasses.getSelectionModel().getSelectedItem().getValue();
+		TreeItem<PathClass> item;
+		if ((item = treeClasses.getSelectionModel().getSelectedItem()) != null)
+			return item.getValue();
+		else
+			return null;
 	}
 
 	/**
@@ -754,7 +772,7 @@ public class PathClassPane {
 		return annotations;
 	}
 
-	static List<TreeItem<PathClass>> asTreeItemList(FilteredList<PathClass> filteredList){
+	static List<TreeItem<PathClass>> asTreeItemList(ObservableList<PathClass> filteredList){
 		List<TreeItem<PathClass>> out = new ArrayList<>();
 		for (int i = 0; i < filteredList.size(); i++) {
 			out.add(new TreeItem<>(filteredList.get(i)));
