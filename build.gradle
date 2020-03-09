@@ -55,7 +55,7 @@ def additionalResourcesDir = "build/${qupathOutputDir}"
 /*
  * JavaFX version
  */
-def jfxVersion = '13.0.1'
+def jfxVersion = '13.0.2'
 
 /*
  * Include OpenCV binaries with GPU support (quite big, may not be used?)
@@ -186,8 +186,7 @@ allprojects {
     picocliVersion     = '4.1.4'
     jfreesvgVersion    = '4.0'
     // Note, if OpenCV is a SNAPSHOT version then it must already be installed locally (with Maven)
-    opencvVersion      = '4.2.0-1.5.3'
-    onnxruntimeVersion = '1.1.2-1.5.3'
+    opencvVersion      = '4.1.2-1.5.2'
   }
 
   configurations {
@@ -200,7 +199,6 @@ allprojects {
     jfxtras
     opencv
     onnxruntime
-    tensorflow
     jpen
     imagej
     openslide
@@ -210,15 +208,8 @@ allprojects {
     picocli
     jfreesvg
 
-    // Guava tries to bring in extra dependencies not required at runtime
-    implementation {
-    	exclude group: 'com.google.code.findbugs'
-    	exclude group: 'org.codehaus.mojo', module: 'animal-sniffer-annotations'
-    	exclude group: 'com.google.errorprone', module: 'error_prone_annotations'
-    	exclude group: 'com.google.j2objc', module: 'j2objc-annotations'
-    	exclude group: 'org.checkerframework', module: 'checker-qual'
-    }
-
+	// Quite possible this shouldn't be here
+	implementation
   }
 
   dependencies {
@@ -242,30 +233,24 @@ allprojects {
 
     gson "com.google.code.gson:gson:${gsonVersion}"
 
-    controlsfx "org.controlsfx:controlsfx:${controlsfxVersion}"
+    controlsfx "org.controlsfx:controlsfx:${controlsfxVersion}",  {
+    	// ControlsFX 11.0.1 uses a linux classifier to bring in more JavaFX than it may need
+    	exclude group: 'org.openjfx'
+    }
 
     jfxtras "org.jfxtras:jfxtras-menu:${jfxtrasVersion}"
 
-
-
-    opencv "org.bytedeco:opencv:${opencvVersion}-20200304.035646-482"
+    opencv "org.bytedeco:opencv:${opencvVersion}"
     if (nativesCPP != null) {
-	    opencv "org.bytedeco:openblas::${nativesCPP}" // Required for OpenCV with JavaCPP >= 1.5.1
-//      if (useGPU)
-//        opencv "org.bytedeco:opencv:${opencvVersion}:${nativesCPP}-gpu"
-//      else
-	      opencv "org.bytedeco:opencv:${opencvVersion}-20200304.035646-482:${nativesCPP}"
+	  opencv "org.bytedeco:openblas::${nativesCPP}" // Required for OpenCV with JavaCPP >= 1.5.1
+      if (useGPU)
+        opencv "org.bytedeco:opencv:${opencvVersion}:${nativesCPP}-gpu"
+      else
+	    opencv "org.bytedeco:opencv:${opencvVersion}:${nativesCPP}"
     }
-
-    //implementation 'org.bytedeco:onnxruntime:${onnxruntimeVersion}-20200303.152601-8'
-    //implementation 'org.bytedeco:onnxruntime:${onnxruntimeVersion}-20200303.152601-8:${nativesCPP}-gpu'
 
     implementation 'org.bytedeco:onnxruntime:1.1.2-1.5.3-20200229.101223-6'
     implementation 'org.bytedeco:onnxruntime:1.1.2-1.5.3-20200229.101223-6:windows-x86_64'
-
-    tensorflow 'org.bytedeco:tensorflow:1.15.2-1.5.3-20200302.112925-208'
-    tensorflow 'org.bytedeco:tensorflow:1.15.2-1.5.3-20200302.112925-208:windows-x86_64-python'
-
 
     jpen "net.sourceforge.jpen:jpen:${jpenVersion}"
     if (nativesClassifier != null)
@@ -281,16 +266,17 @@ allprojects {
     if (nativesClassifier != null)
       openslide "org.openslide:openslide:${openslideVersion}:${nativesClassifier}"
 
-    guava "com.google.guava:guava:${guavaVersion}"
+    guava "com.google.guava:guava:${guavaVersion}", {
+    	exclude group: 'com.google.code.findbugs'
+    	exclude group: 'org.codehaus.mojo', module: 'animal-sniffer-annotations'
+    	exclude group: 'com.google.errorprone', module: 'error_prone_annotations'
+    	exclude group: 'com.google.j2objc', module: 'j2objc-annotations'
+    	exclude group: 'org.checkerframework', module: 'checker-qual'
+    }
 
     picocli "info.picocli:picocli:${picocliVersion}"
-<<<<<<< HEAD
 
-    jfreesvg "org.jfree:jfreesvg:${jfreesvgVersion}"
-=======
-    
     jfreesvg "org.jfree:org.jfree.svg:${jfreesvgVersion}"
->>>>>>> 56b1062310dfb1fc3270786cecbb3f5ce10655b6
   }
 
 }
