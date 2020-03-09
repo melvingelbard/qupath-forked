@@ -174,17 +174,17 @@ allprojects {
     bioformatsVersion  = '6.3.1'
     commonsMathVersion = '3.6.1'
     controlsfxVersion  = '11.0.1'
-    groovyVersion      = '2.5.9'
+    groovyVersion      = '3.0.2'
     gsonVersion        = '2.8.6'
     guavaVersion       = '28.2-jre'
-    imagejVersion      = '1.52s'
+    imagejVersion      = '1.52t'
     jfxtrasVersion     = '10.0-r1'
     jpenVersion        = '2-150301'
     jtsVersion         = '1.16.1'
     openslideVersion   = '3.4.1_2'
-    richtextVersion    = '0.10.3'
+    richtextVersion    = '0.10.4'
     picocliVersion     = '4.1.4'
-    jfreesvgVersion    = '3.4'
+    jfreesvgVersion    = '4.0'
     // Note, if OpenCV is a SNAPSHOT version then it must already be installed locally (with Maven)
     opencvVersion      = '4.2.0-1.5.3'
     onnxruntimeVersion = '1.1.2-1.5.3'
@@ -284,8 +284,13 @@ allprojects {
     guava "com.google.guava:guava:${guavaVersion}"
 
     picocli "info.picocli:picocli:${picocliVersion}"
+<<<<<<< HEAD
 
     jfreesvg "org.jfree:jfreesvg:${jfreesvgVersion}"
+=======
+    
+    jfreesvg "org.jfree:org.jfree.svg:${jfreesvgVersion}"
+>>>>>>> 56b1062310dfb1fc3270786cecbb3f5ce10655b6
   }
 
 }
@@ -396,6 +401,8 @@ allprojects {
   repositories {
     mavenLocal()
     mavenCentral()
+
+    maven { url 'http://maven.imagej.net/content/groups/public' }
 
     maven {
       name 'Unidata'
@@ -640,6 +647,10 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
   	def appVersion = qupathVersion.replace('-SNAPSHOT', '')
 
     def packageType = findProperty('type')
+    if (!packageType) {
+    	packageType = 'app-image'
+    	println 'No package type specified, using default ' + packageType
+   	}
 
     def params = [packager]
 
@@ -658,9 +669,9 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
 		params << '--mac-package-name' << 'QuPath'
 		params << '--mac-package-identifier' << 'QuPath'
 		if (packageType == 'installer') {
-			params << '--type' << 'dmg'
+			params << '--type' << 'pkg'
 		} else {
-			params << '--type' << 'app-image'
+			params << '--type' << packageType
 		}
 	} else if (OperatingSystem.current().isWindows()) {
 		if (packageType == 'installer') {
@@ -676,7 +687,7 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
 				println "Simplifying QuPath version ${qupathVersion} to ${appVersion} for compatibility"
 			}
 		} else
-			params << '--type' << 'app-image'
+			params << '--type' << packageType
 		// Create a separate launcher with a console - this can help with debugging
 		def fileTemp = File.createTempFile('qupath-building', '.properties')
 		def consoleLauncherName = "QuPath-${qupathVersion} (debug)"
@@ -685,7 +696,7 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
 //		fileTemp << System.lineSeparator() << 'java-options=' << '"-Dqupath.config="' << consoleLauncherName + '.cfg""'
 		params << '--add-launcher' << "\"${consoleLauncherName}\"=\"${fileTemp.getAbsolutePath()}\""
 	} else
-		params << '--type' << 'app-image'
+		params << '--type' << packageType
 
     // Store the app version (typically a simplified version of the full format)
     params << '--app-version' << appVersion
