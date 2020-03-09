@@ -20,15 +20,6 @@ import java.util.Set;
 import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 
-
-import org.bytedeco.javacpp.*;
-import org.bytedeco.tensorflow.*;
-import static org.bytedeco.tensorflow.global.tensorflow.*;
-import org.bytedeco.onnxruntime.AllocatorWithDefaultOptions;
-import org.bytedeco.onnxruntime.Env;
-import org.bytedeco.onnxruntime.Session;
-import org.bytedeco.onnxruntime.SessionOptions;
-import org.bytedeco.onnxruntime.global.onnxruntime;
 import org.controlsfx.control.ListSelectionView;
 import org.controlsfx.dialog.ProgressDialog;
 import org.slf4j.Logger;
@@ -154,8 +145,13 @@ public class TileExportCommand implements PathCommand {
 		}
 		
 		
-		onnxruntime onnx = new onnxruntime();
+		// TODO
+		/*
+		//onnxruntime onnx = new onnxruntime();
+		boolean[] bools = new boolean[] {true, false};
+		//Tensor tensorX = Tensor.create(bools,3L);
 		//Scope scope = Scope.NewRootScope();
+		 */
 		
 		
 		// Check how the project is structured. If the entries have different 
@@ -540,7 +536,7 @@ public class TileExportCommand implements PathCommand {
 		});
 
 		
-		PaneTools.addGridRow(optionPane, row++, 0, "Downsampling of the output images", downsampleRadio, downsampleText, pixelSizeRadio, pixelSizeText);
+		PaneTools.addGridRow(optionPane, row++, 0, "Downsampling/Pixel size of the output images", downsampleRadio, downsampleText, pixelSizeRadio, pixelSizeText);
 		
 		Separator sep = new Separator();
 		PaneTools.addGridRow(optionPane, row++, 0, "", sep, sep, sep, sep, sep, sep);
@@ -558,7 +554,7 @@ public class TileExportCommand implements PathCommand {
 		labelExtensionLabel.setLabelFor(comboLabelExtension);
 		comboLabelExtension.getItems().setAll(".tif", ".png");
 		comboLabelExtension.getSelectionModel().selectFirst();
-		PaneTools.addGridRow(optionPane, row++, 0, "Image extension for the output images", imageExtensionLabel, comboImageExtension, labelExtensionLabel, comboLabelExtension);
+		PaneTools.addGridRow(optionPane, row++, 0, "File extension for the output images/labels", imageExtensionLabel, comboImageExtension, labelExtensionLabel, comboLabelExtension);
 		
 		// Height
 		Label tileHeightLabel = new Label("Tile height");

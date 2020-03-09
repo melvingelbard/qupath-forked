@@ -186,7 +186,7 @@ allprojects {
     picocliVersion     = '4.1.4'
     jfreesvgVersion    = '3.4'
     // Note, if OpenCV is a SNAPSHOT version then it must already be installed locally (with Maven)
-    opencvVersion      = '4.1.2-1.5.2'
+    opencvVersion      = '4.2.0-1.5.3'
     onnxruntimeVersion = '1.1.2-1.5.3'
   }
 
@@ -200,6 +200,7 @@ allprojects {
     jfxtras
     opencv
     onnxruntime
+    tensorflow
     jpen
     imagej
     openslide
@@ -245,19 +246,26 @@ allprojects {
 
     jfxtras "org.jfxtras:jfxtras-menu:${jfxtrasVersion}"
 
-    opencv "org.bytedeco:opencv:${opencvVersion}"
+
+
+    opencv "org.bytedeco:opencv:${opencvVersion}-20200304.035646-482"
     if (nativesCPP != null) {
-	  opencv "org.bytedeco:openblas::${nativesCPP}" // Required for OpenCV with JavaCPP >= 1.5.1
-      if (useGPU)
-        opencv "org.bytedeco:opencv:${opencvVersion}:${nativesCPP}-gpu"
-      else
-	    opencv "org.bytedeco:opencv:${opencvVersion}:${nativesCPP}"
+	    opencv "org.bytedeco:openblas::${nativesCPP}" // Required for OpenCV with JavaCPP >= 1.5.1
+//      if (useGPU)
+//        opencv "org.bytedeco:opencv:${opencvVersion}:${nativesCPP}-gpu"
+//      else
+	      opencv "org.bytedeco:opencv:${opencvVersion}-20200304.035646-482:${nativesCPP}"
     }
 
-    //onnxruntime "org.bytedeco:onnxruntime:onnxruntime-${onnxruntimeVersion}-20200227.122225-3"
-    onnxruntime "org.bytedeco:onnxruntime:onnxruntime-1.1.2-1.5.3-20200228587.122225-3-windows-x86_64"
-    onnxruntime "org.bytedeco:openblas::${nativesCPP}"
-    onnxruntime "org.bytedeco:onnxruntime:${onnxruntimeVersion}:${nativesCPP}"
+    //implementation 'org.bytedeco:onnxruntime:${onnxruntimeVersion}-20200303.152601-8'
+    //implementation 'org.bytedeco:onnxruntime:${onnxruntimeVersion}-20200303.152601-8:${nativesCPP}-gpu'
+
+    implementation 'org.bytedeco:onnxruntime:1.1.2-1.5.3-20200229.101223-6'
+    implementation 'org.bytedeco:onnxruntime:1.1.2-1.5.3-20200229.101223-6:windows-x86_64'
+
+    tensorflow 'org.bytedeco:tensorflow:1.15.2-1.5.3-20200302.112925-208'
+    tensorflow 'org.bytedeco:tensorflow:1.15.2-1.5.3-20200302.112925-208:windows-x86_64-python'
+
 
     jpen "net.sourceforge.jpen:jpen:${jpenVersion}"
     if (nativesClassifier != null)
