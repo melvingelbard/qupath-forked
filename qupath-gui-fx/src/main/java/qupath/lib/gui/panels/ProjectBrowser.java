@@ -29,6 +29,7 @@ import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.file.Path;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -54,6 +55,7 @@ import org.controlsfx.control.textfield.TextFields;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.DoubleBinding;
@@ -63,7 +65,6 @@ import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Insets;
-import javafx.geometry.Pos;
 import javafx.geometry.Side;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.control.Button;
@@ -73,9 +74,7 @@ import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
-import javafx.scene.control.ScrollPane;
 import javafx.scene.control.SelectionMode;
-import javafx.scene.control.Separator;
 import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
@@ -89,9 +88,7 @@ import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
-import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
-import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
 import javafx.util.Callback;
 import qupath.lib.common.GeneralTools;
@@ -151,6 +148,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 	
 	private static String[] additionalSortKeys;
 	
+	private static final String URI = "URI";
 	
 	public ProjectBrowser(final QuPathGUI qupath) {
 		this.project = qupath.getProject();
@@ -190,6 +188,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			}
 		});
 		
+//		TextArea textDescription = new TextArea();
 		TextArea textDescription = new TextArea();
 		textDescription.textProperty().bind(descriptionText);
 		MasterDetailPane mdTree = new MasterDetailPane(Side.BOTTOM, tree, textDescription, false);
@@ -198,15 +197,10 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		tree.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
 		tree.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
 			Object selected = n == null ? null : n.getValue();
-			try {
-				var entry = (ProjectImageEntry<?>)selected;
-				if (!entry.getDescription().equals(""))
-					descriptionText.set(entry.getDescription());
-				else
-					descriptionText.set(null);
-			} catch (Exception e) {
+			if (selected instanceof ProjectImageEntry)
+				descriptionText.set(((ProjectImageEntry<?>)selected).getDescription());
+			else
 				descriptionText.set(null);
-			}
 		});
 
 		TitledPane titledTree = new TitledPane("Image list", mdTree);
@@ -259,7 +253,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 				thumbnailSize, FXCollections.observableArrayList(ProjectThumbnailSize.values()), ProjectThumbnailSize.class,
 				"Project thumbnails size", "Appearance", "Choose thumbnail size for the project pane");
 		
-		additionalSortKeys = new String[] {"URI"};
+		additionalSortKeys = new String[] {URI};
 
 	}
 	
@@ -351,7 +345,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			if (project != null && entry != null) {
 				if (showDescriptionEditor(entry)) {
 					descriptionText.set(entry.getDescription());
-					syncProject(project);				
+					syncProject(project);						
 				}
 			} else {
 				Dialogs.showErrorMessage("Edit image description", "No entry is selected!");
@@ -380,153 +374,57 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 				labValue.setLabelFor(tfMetadataValue);
 				tfMetadataKey.setTooltip(new Tooltip("Enter the name for the metadata entry"));
 				tfMetadataValue.setTooltip(new Tooltip("Enter the value for the metadata entry"));
-				Button addBtn = new Button("Add");
-				Button clearBtn = new Button("Clear");
-
+				
 				ProjectImageEntry<BufferedImage> entry = entries.size() == 1 ? entries.iterator().next() : null;
+				int nMetadataValues = entry == null ? 0 : entry.getMetadataKeys().size();
 				
 				GridPane pane = new GridPane();
 				pane.setVgap(5);
 				pane.setHgap(5);
-				
-				// Add Textfields
 				pane.add(labKey, 0, 0);
 				pane.add(tfMetadataKey, 1, 0);
 				pane.add(labValue, 0, 1);
 				pane.add(tfMetadataValue, 1, 1);
-				
-				// Add buttons
-				addBtn.setMaxWidth(350);
-				clearBtn.setMaxWidth(350);
-				HBox buttonsHbox = new HBox();
-				buttonsHbox.getChildren().addAll(addBtn, clearBtn);
-				pane.add(buttonsHbox, 0, 2, 4, 1);
-				Separator sep = new Separator();
-				sep.setMaxWidth(400);
-				pane.add(sep, 0, 3, 2, 1);
-				HBox.setHgrow(addBtn, Priority.ALWAYS);
-				HBox.setHgrow(clearBtn, Priority.ALWAYS);
-				GridPane.setHgrow(sep, Priority.ALWAYS);
-				
-				for (var child: pane.getChildren())
-					GridPane.setHgrow(child, Priority.ALWAYS);
-				
-
-				// Add existing metadata
-				// TODO
 				String name = entries.size() + " images";
-				name = entry.getImageName();
-				GridPane tagsGridPane = new GridPane();
-				pane.getChildren().remove(pane.lookup("#metadataSetLabel"));				Label labelCurrent = new Label();
-				labelCurrent.setId("metadataSetLabel");		        
-		        ScrollPane sp = new ScrollPane(tagsGridPane);
-		        sp.setFitToWidth(true);
-		        sp.setMinHeight(100);
-		        sp.setStyle("-fx-background-color:transparent;");
-		        		        tagsGridPane.setStyle("-fx-border-color: #F1F1F1;" +		                "          -fx-border-width: 1px;" +		                "          -fx-border-radius: 10;" +		                "          -fx-border-insets: 5");				String keyString = entry.getMetadataSummaryString();				if (keyString.length() <= 2)					labelCurrent.setText("No Metadata set");				else {					for (String pair: keyString.substring(1, keyString.length()-1).split(",")) {						keyValuePairButton(pane, tagsGridPane, pair);					}				}
-				
-				int nTags = tagsGridPane.getChildren().size();
-				labelCurrent.setText("Current metadata (" + nTags + ")");				pane.add(labelCurrent, 0, 4);				pane.add(sp, 1, 4);
-				
-				Separator sep2 = new Separator();
-				Label descriptionLabel = new Label("Description");
-				TextArea descriptionTextArea = new TextArea();
-				descriptionTextArea.setWrapText(true);
-				descriptionTextArea.setText(entry.getDescription());
-				descriptionText.set(null);
-				descriptionTextArea.setPromptText("Add description here");
-				descriptionTextArea.setMaxWidth(350);
-				descriptionTextArea.setMinWidth(350);
-				descriptionTextArea.setMaxHeight(100);
-				sep2.setMaxWidth(400);
-				pane.add(sep2, 0, 5, 2, 1);
-				pane.add(descriptionLabel, 0, 6);
-				pane.add(descriptionTextArea, 0, 7, 2, 2);
-				
-				// Add functionality of buttons
-				addBtn.setOnAction(event -> {
-					String key = tfMetadataKey.getText();
-					String value = tfMetadataValue.getText();
-					if (key != null 
-							&& !key.equals("") 
-							&& value != null
-							&& !value.equals("")) {
-						boolean keyExist = tagsGridPane.getChildren()
-								.stream()
-								.anyMatch(child -> {
-									BorderPane bp = (BorderPane) child;
-									HBox hbox = (HBox) bp.getLeft();
-									Label label = (Label) hbox.getChildren().get(0);
-									String tempKey = label.getText();
-									if (tempKey.equals(key)) {
-										return true;
-									} else {
-										return false;
-									}
-								});
-						if (!keyExist) {
-							keyValuePairButton(pane, tagsGridPane, key + ":" + value);
-							tfMetadataKey.clear();
-							tfMetadataValue.clear();
-							
-							pane.getChildren().remove(pane.lookup("#metadataSetLabel"));
-							Label metadataLabel = new Label("Current Metadata (" + tagsGridPane.getChildren().size() + ")");
-							metadataLabel.setId("metadataSetLabel");
-							pane.add(metadataLabel, 0,  4);
-						} else {
-							Dialogs.showErrorMessage("Metadata key already present", "Please choose a metadata key that doesn't already exist.");
-						}
-					}
+				if (entry != null) {
+					name = entry.getImageName();
+					if (nMetadataValues > 0) {
 						
-				});
-				
-				clearBtn.setOnAction(event -> {
-					tfMetadataKey.clear();
-					tfMetadataValue.clear();
-				});
-				
-				tfMetadataKey.setOnKeyPressed(event -> {
-					if (event.getCode().equals(KeyCode.ENTER))
-						addBtn.fire();
-				});
-				
-				tfMetadataValue.setOnKeyPressed(event -> {
-					if (event.getCode().equals(KeyCode.ENTER))
-						addBtn.fire();
-				});
+						Label labelCurrent = new Label("Current metadata");
+						TextArea textAreaCurrent = new TextArea();
+						textAreaCurrent.setEditable(false);
+	
+						String keyString = entry.getMetadataSummaryString();
+						if (keyString.isEmpty())
+							textAreaCurrent.setText("No metadata entries yet");
+						else
+							textAreaCurrent.setText(keyString);
+						textAreaCurrent.setPrefRowCount(3);
+						labelCurrent.setLabelFor(textAreaCurrent);
+	
+						pane.add(labelCurrent, 0, 2);
+						pane.add(textAreaCurrent, 1, 2);	
+					}
+				}
 				
 				Dialog<ButtonType> dialog = new Dialog<>();
 				dialog.setTitle("Metadata");
-				dialog.getDialogPane().setMinWidth(350);
-				dialog.getDialogPane().setMinHeight(450);
-				dialog.getDialogPane().getButtonTypes().setAll(ButtonType.APPLY, ButtonType.CANCEL);
+				dialog.getDialogPane().getButtonTypes().setAll(ButtonType.OK, ButtonType.CANCEL);
 				dialog.getDialogPane().setHeaderText("Set metadata for " + name);
 				dialog.getDialogPane().setContent(pane);
 				Optional<ButtonType> result = dialog.showAndWait();
-				if (result.isPresent() && result.get() == ButtonType.APPLY) {
-					// Set metadata for all entries
-					for (var temp : entries) {
-						temp.clearMetadata();
-						// Put all the keys in the keyPane
-						for (var child: tagsGridPane.getChildren()) {
-							BorderPane bp = (BorderPane) child;
-							HBox hbox = (HBox) bp.getLeft();
-							String tempKey = ((Label) hbox.getChildren().get(0)).getText();
-							String tempValue = ((Label) hbox.getChildren().get(1)).getText();
-							String tempValue2 = tempValue.substring(3, tempValue.length()-1);
-							
-							// Add tag to entry's metadata field
-							temp.putMetadataValue(tempKey, tempValue2);
-							
-							// Add description to entry's description field
-							entry.setDescription(descriptionTextArea.getText());
-							if (!descriptionTextArea.getText().isEmpty())
-								descriptionText.set(descriptionTextArea.getText());
-						}
+				if (result.isPresent() && result.get() == ButtonType.OK) {
+					String key = tfMetadataKey.getText().trim();
+					String value = tfMetadataValue.getText();
+					if (key.isEmpty()) {
+						logger.warn("Attempted to set metadata value for {}, but key was empty!", name);
+					} else {
+						// Set metadata for all entries
+						for (var temp : entries)
+							temp.putMetadataValue(key, value);
+						syncProject(project);
+						tree.refresh();
 					}
-						
-					syncProject(project);
-					tree.refresh();
 				}
 							
 			} else {
@@ -759,7 +657,6 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		TextArea editor = new TextArea();
 		editor.setWrapText(true);
 		editor.setText(entry.getDescription());
-		editor.setPromptText("Add description here");
 		Dialog<ButtonType> dialog = new Dialog<>();
 		dialog.getDialogPane().getButtonTypes().setAll(ButtonType.OK, ButtonType.CANCEL);
 		dialog.setTitle("Image description");
@@ -872,75 +769,6 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		if (tree != null) {
 			tree.refresh();
 		}
-	}
-	
-	// CSS styling based on: http://fxexperience.com/2011/12/styling-fx-buttons-with-css/
-	public void keyValuePairButton(GridPane mainPane, GridPane tagsGridPane, String keyValuePair){
-		Image crossImage = new Image("file:///C:/Users/mgelbard/cross-close.png", 15, 15, false, false);
-        ImageView cross = new ImageView(crossImage);
-        cross.setPickOnBounds(true);
-        
-        BorderPane buttonBox = new BorderPane();
-        
-        buttonBox.setStyle("-fx-background-color: \r\n" + 
-        		"        rgba(0,0,0,0.08),\r\n" + 
-        		"        linear-gradient(#9a9a9a, #909090),\r\n" + 
-        		"        linear-gradient(white 0%, #f3f3f3 50%, #ececec 51%, #f2f2f2 100%);\r\n" + 
-        		"    -fx-background-insets: 0 0 -1 0,0,1;\r\n" + 
-        		"    -fx-background-radius: 4, 4, 3;\r\n" + 
-        		"	 -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.5), 4, 0, 1, 1);\r\n" + 
-        		"    -fx-padding: 6 6 6 6;\r\n" + 
-        		"    -fx-text-fill: #242d35;");
-        
-        cross.setOnMouseClicked(event -> {
-        	tagsGridPane.getChildren().remove(buttonBox);
-        	int nTags = tagsGridPane.getChildren().size();
-        	if (nTags == 0) {
-        		mainPane.getChildren().remove(mainPane.lookup("#metadataSetLabel"));
-				Label metadataLabel = new Label("No metadata set");
-				metadataLabel.setId("metadataSetLabel");
-				mainPane.add(metadataLabel, 0,  4);
-        	} else {
-        		mainPane.getChildren().remove(mainPane.lookup("#metadataSetLabel"));
-				Label metadataLabel = new Label("Current metadata (" + nTags + ")");
-				metadataLabel.setId("metadataSetLabel");
-				mainPane.add(metadataLabel, 0,  4);
-        	}
-        });
-        
-        
-        buttonBox.setPrefHeight(20);
-        Label key = new Label(keyValuePair.split(":")[0]);
-        key.setStyle("-fx-font-weight: bold;");
-        Label value = new Label(" : " + keyValuePair.split(":")[1] + "\t");
-        HBox keyValuePairBox = new HBox();
-        keyValuePairBox.getChildren().setAll(key, value);
-
-        buttonBox.setLeft(keyValuePairBox);
-        buttonBox.setRight(cross);
-        buttonBox.setOnMousePressed(event -> buttonBox.setStyle("-fx-background-color: \r\n" + 
-        		"        rgba(0,0,0,0.08),\r\n" + 
-        		"        linear-gradient(#5a61af, #51536d),\r\n" + 
-        		"        linear-gradient(#e4fbff 0%,#cee6fb 10%, #a5d3fb 50%, #88c6fb 51%, #d5faff 100%);\r\n" + 
-        		"    -fx-background-insets: 0 0 -1 0,0,1;\r\n" + 
-        		"    -fx-background-radius: 4, 4, 3;\r\n" + 
-        		"	 -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.5), 4, 0, 1, 1);\r\n" + 
-        		"    -fx-padding: 6 6 6 6;\r\n" + 
-        		"    -fx-text-fill: #242d35"));
-        
-        buttonBox.setOnMouseReleased(event -> buttonBox.setStyle("-fx-background-color: \r\n" + 
-        		"        rgba(0,0,0,0.08),\r\n" + 
-        		"        linear-gradient(#9a9a9a, #909090),\r\n" + 
-        		"        linear-gradient(white 0%, #f3f3f3 50%, #ececec 51%, #f2f2f2 100%);\r\n" + 
-        		"    -fx-background-insets: 0 0 -1 0,0,1;\r\n" + 
-        		"    -fx-background-radius: 4, 4, 3;\r\n" + 
-        		"	 -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.5), 4, 0, 1, 1);\r\n" + 
-        		"    -fx-padding: 6 6 6 6;\r\n" + 
-        		"    -fx-text-fill: #242d35;"));
-        
-        tagsGridPane.setVgap(1);
-        tagsGridPane.add(buttonBox, 0, tagsGridPane.getRowCount()+1);
-        tagsGridPane.setAlignment(Pos.BASELINE_CENTER);
 	}
 
 
@@ -1091,7 +919,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 	
 	/**
 	 * Gets the value of the entry for the specified key.
-	 * E.g. if key == 'URI', the value returned will be the entry's URI.
+	 * E.g. if key == URI, the value returned will be the entry's URI.
 	 * This method should be used to get sorting values that
 	 * are not specifically part of an entry's metadata.
 	 * @param <T>
@@ -1099,13 +927,16 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 	 * @return value
 	 * @throws IOException 
 	 */
-	private static <T> String getValue(ProjectImageEntry<T> entry, String key) throws IOException {
-		if (key.equals("URI")) {
+	private static <T> String getDefaultValue(ProjectImageEntry<T> entry, String key) throws IOException {
+		if (key.equals(URI)) {
 			var URIs = entry.getServerURIs();
 			var it = URIs.iterator();
 			if (URIs.size() == 1) {
-				String name = Project.getNameFromURI(it.next());
-				return ".../" + name;
+				URI uri = it.next();
+				String fullURI = uri.getPath();
+				if (uri.getAuthority() != null)
+					return "[remote] " + uri.getAuthority() + fullURI;
+				return fullURI.substring(fullURI.lastIndexOf("/")+1, fullURI.length());
 			}
 			else
 				return "Multiple URIs";
@@ -1219,7 +1050,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		private List<String> mapKeyList = new ArrayList<>();
 
 		private List<String> sortMetadataKeys = new ArrayList<>();
-		private List<String> sortAdditionalKeys = new ArrayList<>();
+		private List<String> sortDefaultKeys = new ArrayList<>();
 		private String PROJECT_KEY;
 		private String DEFAULT_ROOT = "No project";
 		private String UNASSIGNED_NODE = "(Unassigned)";
@@ -1239,7 +1070,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			if (metadataKey != null)
 				setMetadataKeys(metadataKey);
 			//			rebuildModel();
-			sortAdditionalKeys.add("URI");
+			sortDefaultKeys.add(URI);
 		}
 
 		public void setMetadataKeys(final String... metadataSortKeys) {
@@ -1274,8 +1105,8 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 				for (String sortingKey : sortMetadataKeys) {
 					try {
 						String temp;
-						if (sortAdditionalKeys.contains(sortingKey))
-							temp = getValue(entry, sortingKey);
+						if (sortDefaultKeys.contains(sortingKey))
+							temp = getDefaultValue(entry, sortingKey);
 						else
 							temp = entry.getMetadataValue(sortingKey);
 
@@ -1286,7 +1117,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 							break;
 						}
 					} catch (IOException e) {
-						e.printStackTrace();
+						logger.error(e.toString());
 					}
 				}
 
