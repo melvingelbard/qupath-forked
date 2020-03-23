@@ -249,8 +249,8 @@ allprojects {
 	    opencv "org.bytedeco:opencv:${opencvVersion}:${nativesCPP}"
     }
 
-    implementation 'org.bytedeco:onnxruntime:1.1.2-1.5.3-20200229.101223-6'
-    implementation 'org.bytedeco:onnxruntime:1.1.2-1.5.3-20200229.101223-6:windows-x86_64'
+    //implementation 'org.bytedeco:onnxruntime:1.1.2-1.5.3-20200229.101223-6'
+    //implementation 'org.bytedeco:onnxruntime:1.1.2-1.5.3-20200229.101223-6:windows-x86_64'
 
     jpen "net.sourceforge.jpen:jpen:${jpenVersion}"
     if (nativesClassifier != null)

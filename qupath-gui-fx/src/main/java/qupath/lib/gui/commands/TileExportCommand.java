@@ -145,15 +145,6 @@ public class TileExportCommand implements PathCommand {
 		}
 		
 		
-		// TODO
-		/*
-		//onnxruntime onnx = new onnxruntime();
-		boolean[] bools = new boolean[] {true, false};
-		//Tensor tensorX = Tensor.create(bools,3L);
-		//Scope scope = Scope.NewRootScope();
-		 */
-		
-		
 		// Check how the project is structured. If the entries have different 
 		// parameters (e.g. pixel size or channels), then the export should
 		// not include these entries at the same time.
