@@ -2064,11 +2064,10 @@ public class DefaultScriptEditor implements ScriptEditor {
 			if ("\\".equals(File.separator)) {
 				s = s.replace("\\", "/");
 			}
-			
 			content.put(DataFormat.FILES, files);
 		}
 		
-		if (!s.equals("")) {
+		if (!s.isEmpty()) {
 			content.putString(s);
 			clipboard.setContent(content);
 		}
