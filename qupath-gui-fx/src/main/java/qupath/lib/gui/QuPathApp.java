@@ -4,20 +4,20 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
  * %%
- * QuPath is free software: you can redistribute it and/or modify
+ * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
  * 
- * QuPath is distributed in the hope that it will be useful,
+ * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License 
- * along with QuPath.  If not, see <https://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public
+ * License along with this program.  If not, see
+ * <http://www.gnu.org/licenses/gpl-3.0.html>.
  * #L%
  */
 
@@ -31,8 +31,11 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.sun.javafx.application.LauncherImpl;
+
 import javafx.application.Application;
 import javafx.application.Platform;
+import javafx.application.Preloader;
 import javafx.stage.Stage;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -47,14 +50,28 @@ import qupath.lib.projects.ProjectIO;
 public class QuPathApp extends Application {
 	
 	final static Logger logger = LoggerFactory.getLogger(QuPathApp.class);
+	Parameters params;
+	Map<String, String> namedParams;
+	
+    @Override
+    public void init() throws Exception {       
+    	LauncherImpl.notifyPreloader(this, new Preloader.ProgressNotification(0));
+    	// Handle params
+		params = getParameters();
+		namedParams = params.getNamed();
+//    	List<String> unnamedParams = params.getUnnamed();
+		Thread.sleep(1000);
+		LauncherImpl.notifyPreloader(this, new Preloader.ProgressNotification(0.2));
+		Thread.sleep(1000);
+		LauncherImpl.notifyPreloader(this, new Preloader.ProgressNotification(0.4));
+		Thread.sleep(1000);
+		LauncherImpl.notifyPreloader(this, new Preloader.ProgressNotification(0.8));
+		Thread.sleep(1000);
+    }
 
 	@Override
 	public void start(Stage stage) throws Exception {
-		// Handle params
-		Parameters params = getParameters();
-		Map<String, String> namedParams = params.getNamed();
-//		List<String> unnamedParams = params.getUnnamed();
-		
+
 		// Create main GUI
 		boolean quiet = Boolean.valueOf(namedParams.getOrDefault("quiet", null));
 		QuPathGUI gui = new QuPathGUI(getHostServices(), stage, null, true, quiet);

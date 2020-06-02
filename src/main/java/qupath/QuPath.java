@@ -40,6 +40,8 @@ import javax.script.SimpleScriptContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.sun.javafx.application.LauncherImpl;
+
 import picocli.AutoComplete.GenerateCompletion;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
@@ -52,6 +54,7 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.BuildInfo;
 import qupath.lib.gui.ExtensionClassLoader;
 import qupath.lib.gui.QuPathApp;
+import qupath.lib.gui.SplashScreenLoader;
 import qupath.lib.gui.Version;
 import qupath.lib.gui.extensions.Subcommand;
 import qupath.lib.gui.logging.LogManager;
@@ -172,7 +175,7 @@ public class QuPath {
 			if (qupath.image != null && !qupath.image.equals(""))
 				CLIArgs.add("--image=" + qupath.image);
 			
-			QuPathApp.launch(QuPathApp.class, CLIArgs.toArray(new String[CLIArgs.size()]));
+			LauncherImpl.launchApplication(QuPathApp.class, SplashScreenLoader.class, CLIArgs.toArray(new String[CLIArgs.size()]));
 			
 		} else {
 			// Parse and execute subcommand with args
