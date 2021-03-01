@@ -167,15 +167,6 @@ public class DelaunayTools {
 	}
 	
 	/**
-	 * Create a new {@link Builder} to compute a triangulation using the specified objects.
-	 * @param pathObjects
-	 * @return
-	 */
-	public static Builder newBuilder(Collection<PathObject> pathObjects) {
-		return new Builder(pathObjects);
-	}
-	
-	/**
 	 * Builder class to create a {@link Subdivision} based on Delaunay triangulation.
 	 */
 	public static class Builder {
@@ -195,8 +186,11 @@ public class DelaunayTools {
 		
 		private Function<PathObject, Collection<Coordinate>> coordinateExtractor;
 		
-		
-		private Builder(Collection<PathObject> pathObjects) {
+		/**
+		 * Create a new {@link Builder} to compute a triangulation using the specified objects.
+		 * @param pathObjects
+		 */
+		public Builder(Collection<PathObject> pathObjects) {
 			ImagePlane plane = null;
 			for (var pathObject : pathObjects) {
 				var currentPlane = pathObject.getROI().getImagePlane();
@@ -583,7 +577,7 @@ public class DelaunayTools {
 		
 		private Set<PathObject> pathObjects = new LinkedHashSet<>();
 		private Map<Coordinate, PathObject> coordinateMap = new HashMap<>();
-		private Map<PathObject, List<Coordinate>> objectCoordinateMap = new HashMap<>();
+//		private Map<PathObject, List<Coordinate>> objectCoordinateMap = new HashMap<>();
 		private QuadEdgeSubdivision subdivision;
 		
 		private ImagePlane plane;

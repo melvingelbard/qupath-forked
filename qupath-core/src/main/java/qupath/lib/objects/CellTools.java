@@ -231,7 +231,7 @@ public class CellTools {
 	
 	private static List<PathObject> detectionsToCells(Collection<PathObject> detections, Collection<PathObject> allDetections, Map<PathObject, Geometry> cellBoundaryMap) {
 		
-		var subdivision = DelaunayTools.newBuilder(allDetections)
+		var subdivision = new DelaunayTools.Builder(allDetections)
 			.preferNucleus(true)
 			.roiBounds(2.0, 1)
 			.build();
