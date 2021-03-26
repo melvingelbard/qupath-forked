@@ -89,15 +89,31 @@ class CompositeClassifier<T> implements ObjectClassifier<T> {
 		return n;
 	}
 	
-	Map<PathObject, PathClass> createMap(Collection<? extends PathObject> pathObjects) {
+	/**
+	 * Return a map where the keys are the {@link PathObject}s in the collection and the values are their {@link PathClass}.
+	 * 
+	 * @param pathObjects
+	 * @return map
+	 */
+	static Map<PathObject, PathClass> createMap(Collection<? extends PathObject> pathObjects) {
 		var map = new HashMap<PathObject, PathClass>();
-		for (var pathObject : pathObjects)
-			map.put(pathObject, pathObject.getPathClass());
+		for (var pathObject : pathObjects) {
+			if (pathObject != null)
+				map.put(pathObject, pathObject.getPathClass());				
+		}
 		return map;
 //		return pathObjects.stream().collect(Collectors.toMap(p -> p, p -> p.getPathClass()));
 	}
 	
-	void resetClassifications(Collection<? extends PathObject> pathObjects, Map<PathObject, PathClass> map) {
+	/**
+	 * Reset the classification of all {@link PathObject}s in the collection according 
+	 * to the provided map. If an object from the collection does not appear in the map, 
+	 * its {@link PathClass} is set to {@code null}.
+	 * 
+	 * @param pathObjects
+	 * @param map
+	 */
+	static void resetClassifications(Collection<? extends PathObject> pathObjects, Map<PathObject, PathClass> map) {
 		pathObjects.stream().forEach(p -> p.setPathClass(map.get(p)));
 	}
 

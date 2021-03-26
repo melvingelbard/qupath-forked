@@ -54,6 +54,8 @@ class SimpleClassifier<T> extends AbstractObjectClassifier<T> {
 	public int classifyObjects(ImageData<T> imageData, Collection<? extends PathObject> pathObjects, boolean resetExistingClass) {
 		int n = 0;
 		for (var pathObject : pathObjects) {
+			if (!filter.test(pathObject))
+				continue;
 			var previousClass = pathObject.getPathClass();
 			if (resetExistingClass)
 				pathObject.setPathClass(null);

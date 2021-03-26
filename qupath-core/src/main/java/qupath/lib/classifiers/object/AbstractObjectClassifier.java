@@ -40,7 +40,7 @@ public abstract class AbstractObjectClassifier<T> implements ObjectClassifier<T>
 	/**
 	 * Choose which objects are supported (often detections)
 	 */
-	private PathObjectFilter filter;
+	PathObjectFilter filter;
 	
 	/**
 	 * Timestamp representing when the classifier was created/trained
