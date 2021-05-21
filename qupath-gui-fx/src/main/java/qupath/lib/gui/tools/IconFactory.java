@@ -86,6 +86,7 @@ public class IconFactory {
 									CELL_NUCLEI_BOTH("\ue903"),
 									CELL_ONLY("\ue904"),
 									CENTROIDS_ONLY("\ue913"),
+									CROSS("\u274C", ColorToolsFX.getCachedColor(200, 0, 0)),
 									
 									COG("\ue905"),
 									CONTRAST("\ue906"),
@@ -131,6 +132,7 @@ public class IconFactory {
 
 									TABLE("\ue91a"),
 									TMA_GRID("\ue91b", PathPrefs.colorTMAProperty()),
+									TICK("\u2713", ColorToolsFX.getCachedColor(0, 200, 0)),
 
 									WAND_TOOL("\ue91c", PathPrefs.colorDefaultObjectsProperty()),
 									
