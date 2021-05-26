@@ -1192,15 +1192,13 @@ class DefaultProject implements Project<BufferedImage> {
 	}
 
 	@Override
-	public boolean swapEntryOrder(int firstIndex, int secondIndex) {
-		var firstEntry = images.get(firstIndex);
-		var secondEntry = images.get(secondIndex);
-		
-		if (firstEntry == null || secondEntry == null)
+	public boolean setEntryIndex(int fromIndex, int toIndex) {
+		var entry = images.get(fromIndex);
+		if (entry == null || toIndex < 0 || toIndex > images.size()-1)
 			return false;
 		
-		images.set(firstIndex, secondEntry);
-		images.set(secondIndex, firstEntry);
+		images.remove(fromIndex);
+		images.add(fromIndex < toIndex ? toIndex : toIndex, entry);
 		return true;
 	}
 	

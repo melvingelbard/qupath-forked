@@ -261,13 +261,13 @@ public interface Project<T> {
 	public Manager<PixelClassifier> getPixelClassifiers();
 	
 	/**
-	 * Swap two entries' order in the image list.
+	 * Set the entry (with index {@code entryIndex}) to index {@code toIndex} in the image list.
 	 * 
-	 * @param firstIndex
-	 * @param secondIndex
+	 * @param entryIndex
+	 * @param toIndex
 	 * @return success
 	 */
-	public boolean swapEntryOrder(int firstIndex, int secondIndex);
+	public boolean setEntryIndex(int entryIndex, int toIndex);
 	
 	
 //	public List<String> listPixelClassifiers();

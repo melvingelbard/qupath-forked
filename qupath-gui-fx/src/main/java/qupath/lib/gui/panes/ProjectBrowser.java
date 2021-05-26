@@ -1389,7 +1389,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
                     	int draggedIdx = imageList.indexOf(draggedEntry);
                     	int thisIdx = imageList.indexOf(entry);
                     	
-                    	success = project.swapEntryOrder(draggedIdx, thisIdx);
+                    	success = project.setEntryIndex(draggedIdx, thisIdx);
                     }
                 }
                 event.setDropCompleted(success);
