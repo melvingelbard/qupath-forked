@@ -87,7 +87,10 @@ import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeView;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.input.ClipboardContent;
+import javafx.scene.input.Dragboard;
 import javafx.scene.input.KeyCode;
+import javafx.scene.input.TransferMode;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
@@ -1336,8 +1339,70 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 				setTooltip(null);
 				return;
 			}
-
+			
 			ProjectImageEntry<BufferedImage> entry = item instanceof ProjectImageEntry ? (ProjectImageEntry<BufferedImage>)item : null;
+			var img = getThumbnailImage(entry);
+            final Image image = img != null ? SwingFXUtils.toFXImage(img, null) : null;
+			
+			setOnDragDetected(event -> {
+                if (entry == null)
+                    return;
+
+                Dragboard dragboard = startDragAndDrop(TransferMode.MOVE);
+                ClipboardContent content = new ClipboardContent();
+                content.putImage(image);
+                content.putString(entry.getEntryPath().toString());
+                dragboard.setDragView(image);
+                dragboard.setContent(content);
+
+                event.consume();
+            });
+			
+			setOnDragOver(event -> {
+                if (event.getGestureSource() != this && event.getDragboard().hasString())
+                    event.acceptTransferModes(TransferMode.MOVE);
+
+                event.consume();
+            });
+
+            setOnDragEntered(event -> {
+                if (event.getGestureSource() != this && event.getDragboard().hasString())
+                    setOpacity(0.25);
+            });
+
+            setOnDragExited(event -> {
+                if (event.getGestureSource() != this && event.getDragboard().hasString())
+                    setOpacity(1);
+            });
+
+            setOnDragDropped(event -> {
+                if (entry == null)
+                    return;
+
+                Dragboard db = event.getDragboard();
+                boolean success = false;
+
+                if (db.hasString()) {
+                    var imageList = project.getImageList();
+                    var draggedEntry = imageList.stream().filter(entry2 -> entry2.getEntryPath().toString().equals(db.getString())).findAny().get();
+                    if (draggedEntry != null) {
+                    	int draggedIdx = imageList.indexOf(draggedEntry);
+                    	int thisIdx = imageList.indexOf(entry);
+                    	
+                    	success = project.swapEntryOrder(draggedIdx, thisIdx);
+                    }
+                }
+                event.setDropCompleted(success);
+
+                event.consume();
+            });
+
+            setOnDragDone(event -> {
+            	refreshProject();
+            	event.consume();
+            });
+
+			
 			if (isCurrentImage(entry))
 				setStyle("-fx-font-weight: bold; -fx-font-family: arial");
 			else if (entry == null || entry.hasImageData())
@@ -1366,15 +1431,8 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 				tooltip.setText(entry.getSummary());
 				//	        	 Tooltip tooltip = new Tooltip(sb.toString());
 
-				BufferedImage img = null;
-				try {
-					img = (BufferedImage)entry.getThumbnail();
-				} catch (Exception e) {
-					logger.warn("Unable to read thumbnail for {} ({})" + entry.getImageName(), e.getLocalizedMessage());
-				}
 				
-				if (img != null) {
-					Image image = SwingFXUtils.toFXImage(img, null);
+				if (image != null) {
 					viewTooltip.setImage(image);
 					tooltip.setGraphic(viewTooltip);
 					GuiTools.paintImage(viewCanvas, image);
@@ -1385,6 +1443,15 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 				}
 			}
 			
+		}
+
+		private BufferedImage getThumbnailImage(ProjectImageEntry<BufferedImage> entry) {
+			try {
+				return entry == null ? null : entry.getThumbnail();
+			} catch (Exception e) {
+				logger.warn("Unable to read thumbnail for {} ({})" + entry.getImageName(), e.getLocalizedMessage());
+			}
+			return null;
 		}
 	}
 }

@@ -1,3 +1,26 @@
+/*-
+ * #%L
+ * This file is part of QuPath.
+ * %%
+ * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
+ * Contact: IP Management (ipmanagement@qub.ac.uk)
+ * Copyright (C) 2018 - 2021 QuPath developers, The University of Edinburgh
+ * %%
+ * QuPath is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ * 
+ * QuPath is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License 
+ * along with QuPath.  If not, see <https://www.gnu.org/licenses/>.
+ * #L%
+ */
+
 package qupath.lib.gui.tutorials;
 
 import java.util.List;
@@ -15,19 +38,23 @@ public class QuPathTutorialStep {
     String input;
     Predicate<String> inputPredicate;
     List<String> choices;
+    Predicate<String> choicesFun;
+    boolean singleChoice;
     
     public static class Builder {
     	// Required parameters
     	private final String instruction;
     	
     	// Optional parameters
-    	String title = "";
-    	Predicate<QuPathGUI> checkFun = null;
-        String checkPass = "";
-        String checkFail = "";
-        String input = null;
-        Predicate<String> inputPredicate = null;
-        List<String> choices = null;
+    	private String title = "";
+    	private Predicate<QuPathGUI> checkFun = null;
+    	private String checkPass = "";
+    	private String checkFail = "";
+    	private String input = null;
+    	private Predicate<String> inputPredicate = null;
+    	private List<String> choices = null;
+    	private Predicate<String> choicesFun = null;
+    	private boolean singleChoice = false;
         
         public Builder(String instruction) {
         	this.instruction = instruction;
@@ -60,8 +87,14 @@ public class QuPathTutorialStep {
         	return this;
         }
         
-        public Builder choices(List<String> choices) {
+        public Builder choices(List<String> choices, Predicate<String> fun) {
+        	return this.choices(choices, fun, false);
+        }
+
+        public Builder choices(List<String> choices, Predicate<String> fun, boolean singleChoice) {
         	this.choices = choices;
+        	this.choicesFun = fun;
+        	this.singleChoice = singleChoice;
         	return this;
         }
         
@@ -77,6 +110,7 @@ public class QuPathTutorialStep {
     	this.checkFun = builder.checkFun;
     	this.checkPass = builder.checkPass;
     	this.choices = builder.choices;
+    	this.choicesFun = builder.choicesFun;
     	this.input = builder.input;
     	this.inputPredicate = builder.inputPredicate;
     	this.instruction = builder.instruction;

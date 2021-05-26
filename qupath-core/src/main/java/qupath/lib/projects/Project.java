@@ -260,6 +260,15 @@ public interface Project<T> {
 	 */
 	public Manager<PixelClassifier> getPixelClassifiers();
 	
+	/**
+	 * Swap two entries' order in the image list.
+	 * 
+	 * @param firstIndex
+	 * @param secondIndex
+	 * @return success
+	 */
+	public boolean swapEntryOrder(int firstIndex, int secondIndex);
+	
 	
 //	public List<String> listPixelClassifiers();
 //	

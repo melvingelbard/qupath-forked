@@ -36,22 +36,26 @@ import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.Pagination;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.control.Separator;
 import javafx.scene.control.TextField;
-import javafx.scene.control.TitledPane;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.text.Font;
 import javafx.scene.text.Text;
+import javafx.scene.web.WebEngine;
+import javafx.scene.web.WebView;
 import javafx.stage.Stage;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.tools.IconFactory;
 import qupath.lib.gui.tools.PaneTools;
 
-public class QuPathTutorial {
+public class QuPathTutorial2 {
 	
 	private final static Logger logger = LoggerFactory.getLogger(QuPathTutorial.class);
 	
@@ -65,7 +69,7 @@ public class QuPathTutorial {
     private static final Node iconTick = IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, IconFactory.PathIcons.TICK);
     private static final Node iconCross = IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, IconFactory.PathIcons.CROSS);
     
-    public QuPathTutorial(QuPathGUI qupath, String title, List<QuPathTutorialStep> steps) {
+    public QuPathTutorial2(QuPathGUI qupath, String title, List<QuPathTutorialStep> steps) {
     	this.qupath = qupath;
     	this.title = title;
     	this.steps = steps;
@@ -80,73 +84,43 @@ public class QuPathTutorial {
         titleLabel.setAlignment(Pos.CENTER);
         PaneTools.addGridRow(mainPane, row++, 0, null, titleLabel);
 
-        List<TutorialStepPane> stepPanes = new ArrayList<>();
         currentStep.set(steps.get(0));
-
-        for (var step: steps) {
-        	var stepPane = new TutorialStepPane(step, ++row - 1);
-            stepPane.titledPane.setOnMouseClicked(mouseEvent -> stepPane.titledPane.setExpanded(currentStep.get() == step));
-
-        	stepPanes.add(stepPane);
-        	PaneTools.addGridRow(mainPane, row, 0, "step " + (row - 1), stepPane.titledPane);
-        }
         
-        for (int i = 0; i < stepPanes.size(); i++) {
-        	final int ii = i;
-        	if (ii > 0) {
-        		stepPanes.get(ii).titledPane.setExpanded(false);
-        		stepPanes.get(ii).previousBtn.setOnAction(event -> {
-        			stepPanes.get(ii).titledPane.setExpanded(false);
-        			stepPanes.get(ii - 1).titledPane.setExpanded(true);
-        			currentStep.set(steps.get(ii - 1));
-        		});        		
-        	}
-        	if (ii < stepPanes.size() - 1) {
-        		stepPanes.get(i).nextBtn.setOnAction(event -> {
-        			stepPanes.get(ii).titledPane.setExpanded(false);
-        			stepPanes.get(ii + 1).titledPane.setExpanded(true);
-        			currentStep.set(steps.get(ii + 1));
-        		});     
-        	}
-        	
-        	if (ii == stepPanes.size() - 1) {
-        		stepPanes.get(ii).finishBtn.setOnAction(event -> {
-        			var choice = Dialogs.showConfirmDialog("Leave tutorial", "Are you sure you want to finish and leave this tutorial?");
-        			if (choice)
-        				dialog.close();
-        		});        		
-        	}
-        }
+        Pagination pagination = new Pagination(steps.size());
+        PaneTools.addGridRow(mainPane, row++, 0, null, new Separator());
+        PaneTools.addGridRow(mainPane, row++, 0, null, pagination);
+
+//        pagination.setOnHiding(event -> {
+//			var choice = Dialogs.showConfirmDialog("Leave tutorial", "Are you sure you want to finish and leave this tutorial?");
+//			if (choice)
+//				dialog.close();
+//		});
+        
+        pagination.setPageFactory(index -> new TutorialStepPane(steps.get(index), index).pane);
+        pagination.setMinWidth(250);
 
         dialog.setTitle("QuPath Tutorial");
-        dialog.setResizable(false);
+        dialog.setMinWidth(250);
+        dialog.setResizable(true);
         dialog.setScene(new Scene(mainPane));
-        mainPane.heightProperty().addListener((v, o, n) -> {
-        	dialog.sizeToScene();
-        	logger.error(mainPane.getHeight() + "");
-        
-        });
+        dialog.initOwner(QuPathGUI.getInstance().getStage());
         dialog.showAndWait();
     }
     
     
     private class TutorialStepPane {
     	
-    	private final TitledPane titledPane;
-    	private Button previousBtn;
-    	private Button nextBtn;
-    	private Button finishBtn;
+    	private final GridPane pane;
+    	private final Button finishBtn;
     	
-    	TutorialStepPane(QuPathTutorialStep step, int nStep) {
+    	TutorialStepPane(QuPathTutorialStep step, int nStep) {    		
     		// Scroll pane for the main instructions
     		ScrollPane scrollPane = new ScrollPane();
-    		scrollPane.setPrefSize(120, 120);
+    		scrollPane.setPrefSize(250, 120);
     		scrollPane.setContent(new Text(step.instruction));
     		scrollPane.setStyle("-fx-background-color:transparent;");
     		
             // Create button 
-    		previousBtn = new Button("Previous");
-    		nextBtn = new Button("Next");
             var verifyBtn = new Button("Verify");
             finishBtn = new Button("Finish");
             var tfInput = new TextField(step.input != null ? step.input : "");
@@ -175,41 +149,77 @@ public class QuPathTutorial {
             });
 
             // Pane with instruction and buttons
-            GridPane stepPane = new GridPane();
+            pane = new GridPane();
+            pane.setMinWidth(400);
             BorderPane interactionPane = new BorderPane();
             GridPane userInputPane = new GridPane();
             
-            PaneTools.addGridRow(stepPane, 0, 0, "Step " + nStep, scrollPane);
+            PaneTools.addGridRow(pane, 0, 0, "Step " + nStep, scrollPane);
 //            PaneTools.addGridRow(stepPane, 1, 0, "Step " + nStep, new Separator());
-            PaneTools.addGridRow(stepPane, 1, 0, "Step " + nStep, interactionPane);
+            PaneTools.addGridRow(pane, 1, 0, "Step " + nStep, interactionPane);
             
             int inputPaneRow = 0;
-            if (step.input != null)
-            	PaneTools.addGridRow(userInputPane, inputPaneRow++, 1, "Write here!", tfInput);
-            else if (step.choices != null) {
-//            	for (var choice: step.choices) {
-//            		PaneTools.addGridRow(userInputPane, 0, 0, "Write here!", new );
-//            		
-//            	}
-            	// TODO
+            if (step.input != null) {
+            	PaneTools.addGridRow(userInputPane, inputPaneRow++, 0, "Write here!", tfInput);
+            	GridPane.setMargin(tfInput, new Insets(0.0, 10.0, 0.0, 10.0));
+            	if (step.inputPredicate != null)
+                	PaneTools.addGridRow(userInputPane, inputPaneRow-1, 2, null, checkInput, iconTick, iconCross);
+                if (step.checkFun != null)
+                	PaneTools.addGridRow(userInputPane, inputPaneRow++, 1, "Check your answer", verifyBtn, verifyBtn, verifyBtn);
+            } else if (step.choices != null) {
+            	List<CheckBox> checkBoxes = new ArrayList<>();
+            	for (var choice: step.choices) {
+            		CheckBox checkBox = new CheckBox(choice);
+            		checkBoxes.add(checkBox);
+            		PaneTools.addGridRow(userInputPane, inputPaneRow++, 0, null, checkBox);
+            		logger.error(step.singleChoice + "");
+            		if (step.singleChoice) {
+            			checkBox.selectedProperty().addListener((v, o, n) -> {
+            				logger.error("CHANGE");
+            				if (!n)
+            					return;
+            				userInputPane.getChildren().forEach(child -> {
+            					if (child.getClass() == CheckBox.class && child != checkBox)
+            						((CheckBox)child).setSelected(false);
+            				});
+            			});
+            		}
+            	}
+            	if (step.choicesFun != null) {
+            		PaneTools.addGridRow(userInputPane, inputPaneRow++, 0, "Check your answer", verifyBtn, verifyBtn, verifyBtn);
+            		verifyBtn.setOnAction(e -> {
+            			var success = true;
+            			for (var box: checkBoxes) {
+            				if (box.isSelected() != step.choicesFun.test(box.getText()))
+            					success = false;
+            			}
+            			if (success) {
+	            			Dialogs.showMessageDialog("Pass", step.checkPass);
+	            			iconTick.setVisible(true);
+	            			iconCross.setVisible(false);
+            			} else {
+            				Dialogs.showErrorMessage("Error", step.checkFail);
+                    		iconCross.setVisible(true);
+                    		iconTick.setVisible(false);
+            			}
+            				
+            		});
+            	}
             }
-            if (step.inputPredicate != null)
-            	PaneTools.addGridRow(userInputPane, inputPaneRow-1, 0, "Check your answer", iconTick, iconCross, checkInput);
-            if (step.checkFun != null)
-            	PaneTools.addGridRow(userInputPane, inputPaneRow++, 0, "Check your answer", verifyBtn, verifyBtn, verifyBtn);
             
-            if (step != steps.get(0))
-            	interactionPane.setLeft(previousBtn);
-            interactionPane.setRight(step != steps.get(steps.size() - 1) ? nextBtn : finishBtn);
+            interactionPane.setRight(step != steps.get(steps.size() - 1) ? null : finishBtn);
             interactionPane.setCenter(userInputPane);
-            BorderPane.setMargin(previousBtn, new Insets(0, 10, 0, 0));
-            BorderPane.setMargin(nextBtn, new Insets(0, 0, 0, 10));
             GridPane.setHgrow(interactionPane, Priority.ALWAYS);
+            GridPane.setHgrow(tfInput, Priority.ALWAYS);
             GridPane.setHgrow(verifyBtn, Priority.ALWAYS);
             
-
-            stepPane.setVgap(5.0);
-            titledPane = new TitledPane("Step " + nStep + ": " + step.title, stepPane);
+//            WebView browser = new WebView();
+//            WebEngine webEngine = browser.getEngine();
+//            webEngine.load("https://qupath.readthedocs.io/en/latest/");
+//            PaneTools.addGridRow(pane, 1, 0, null, browser);
+            
+            GridPane.setMargin(scrollPane, new Insets(10.0, 10.0, 10.0, 10.0));
+            pane.setVgap(5.0);
     	}
     }
     
