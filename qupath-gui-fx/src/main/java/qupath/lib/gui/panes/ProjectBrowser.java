@@ -1376,20 +1376,28 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
             });
 
             setOnDragDropped(event -> {
-                if (entry == null)
-                    return;
-
                 Dragboard db = event.getDragboard();
                 boolean success = false;
 
                 if (db.hasString()) {
                     var imageList = project.getImageList();
                     var draggedEntry = imageList.stream().filter(entry2 -> entry2.getEntryPath().toString().equals(db.getString())).findAny().get();
+                    
+                    // If not an entry (i.e. metadata)
                     if (draggedEntry != null) {
-                    	int draggedIdx = imageList.indexOf(draggedEntry);
-                    	int thisIdx = imageList.indexOf(entry);
-                    	
-                    	success = project.setEntryIndex(draggedIdx, thisIdx);
+                    	if (entry == null) {
+                    		// Add metadata to dragged entry
+                    		if (model.mapKeyList.contains(item.toString())) {
+                    			var response = Dialogs.showConfirmDialog("Add metadata", "Add the following metadata pair to this entry?\n{" + model.sortMetadataKeys.get(0) + ": " + item.toString() + "}");
+                    			if (response)
+                    				draggedEntry.putMetadataValue(model.sortMetadataKeys.get(0), item.toString());
+                    		}
+                    	} else {
+                    		int draggedIdx = imageList.indexOf(draggedEntry);
+                    		int thisIdx = imageList.indexOf(entry);
+                    		
+                    		success = project.setEntryIndex(draggedIdx, thisIdx);
+                    	}                    	
                     }
                 }
                 event.setDropCompleted(success);
