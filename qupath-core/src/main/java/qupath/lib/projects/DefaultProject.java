@@ -1198,7 +1198,7 @@ class DefaultProject implements Project<BufferedImage> {
 			return false;
 		
 		images.remove(fromIndex);
-		images.add(fromIndex < toIndex ? toIndex : toIndex, entry);
+		images.add(toIndex, entry);
 		return true;
 	}
 	
